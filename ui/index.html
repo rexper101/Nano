@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nano — AI Desktop Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:        #04060f;
+  --bg2:       #080c1a;
+  --panel:     #0a0e1c;
+  --border:    #1a2040;
+  --border2:   #243060;
+  --teal:      #00e5c8;
+  --purple:    #9b59ff;
+  --pink:      #ff6eb4;
+  --blue:      #1a8fff;
+  --text:      #ccd8f0;
+  --dim:       #4a5878;
+  --faint:     #1e2840;
+  --mono:      'Share Tech Mono', monospace;
+  --head:      'Orbitron', monospace;
+  --body:      'Rajdhani', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── Animated grid bg ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,200,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,200,.025) 1px, transparent 1px);
+  background-size: 36px 36px;
+  pointer-events: none; z-index: 0;
+  animation: gridPulse 6s ease-in-out infinite;
+}
+@keyframes gridPulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+
+/* ── Header ── */
+header {
+  position: relative; z-index: 10;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 20px; height: 52px; flex-shrink: 0;
+}
+.logo {
+  font-family: var(--head);
+  font-size: 18px; font-weight: 900;
+  color: var(--teal);
+  letter-spacing: 6px;
+  text-shadow: 0 0 16px rgba(0,229,200,.5);
+}
+.logo span { color: var(--purple); font-size: 11px; letter-spacing: 2px; margin-left: 10px; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.status-pill {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #ff4050; }
+.dot.on  { background: #00e87a; box-shadow: 0 0 6px #00e87a; }
+.dot.warn{ background: #ffb930; box-shadow: 0 0 6px #ffb930; }
+.clock { font-family: var(--head); font-size: 11px; color: var(--teal); letter-spacing: 2px; }
+
+/* ── Main layout ── */
+main {
+  position: relative; z-index: 1;
+  display: flex; flex: 1; overflow: hidden;
+}
+
+/* ── Avatar sidebar ── */
+#avatar-panel {
+  width: 260px; flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  align-items: center; padding: 20px 16px; gap: 14px;
+}
+
+/* SVG anime avatar */
+#avatar-svg-wrap {
+  width: 180px; height: 220px;
+  position: relative; cursor: pointer;
+}
+#avatar-svg-wrap svg { width: 100%; height: 100%; }
+
+/* Emotion ring around avatar */
+.avatar-ring {
+  position: absolute; inset: -8px; border-radius: 50%;
+  border: 2px solid var(--teal);
+  animation: ringPulse 3s ease-in-out infinite;
+  box-shadow: 0 0 18px rgba(0,229,200,.3);
+}
+@keyframes ringPulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+
+.emotion-display {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--teal); letter-spacing: 3px;
+  text-align: center;
+}
+
+/* Stat bars */
+.stat-row { width: 100%; }
+.stat-label {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 9px;
+  color: var(--dim); margin-bottom: 3px;
+}
+.bar-track { height: 3px; background: var(--faint); border-radius: 2px; }
+.bar-fill  { height: 100%; border-radius: 2px; transition: width .5s ease; }
+
+/* ── Chat area ── */
+#chat-area {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+
+#messages {
+  flex: 1; overflow-y: auto;
+  padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  scroll-behavior: smooth;
+}
+#messages::-webkit-scrollbar { width: 3px; }
+#messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* Message bubbles */
+.msg { display: flex; gap: 10px; align-items: flex-end; animation: msgIn .2s ease-out; }
+@keyframes msgIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.msg.user { flex-direction: row-reverse; }
+
+.msg-icon {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0;
+  border: 1px solid var(--border2); background: var(--panel);
+}
+.msg.nano .msg-icon { border-color: var(--teal); color: var(--teal);
+                      background: rgba(0,229,200,.06); }
+.msg.user .msg-icon { border-color: var(--purple); color: var(--purple);
+                      background: rgba(155,89,255,.06); }
+
+.bubble {
+  max-width: 68%; padding: 10px 14px; border-radius: 4px 12px 12px 12px;
+  font-size: 14px; line-height: 1.55; font-weight: 300;
+}
+.msg.nano .bubble {
+  background: rgba(0,229,200,.05);
+  border: 1px solid rgba(0,229,200,.15);
+}
+.msg.user .bubble {
+  background: rgba(155,89,255,.07);
+  border: 1px solid rgba(155,89,255,.2);
+  border-radius: 12px 4px 12px 12px;
+}
+
+.msg-meta {
+  margin-top: 4px; font-family: var(--mono); font-size: 9px;
+  color: var(--dim); display: flex; gap: 8px;
+}
+.msg.user .msg-meta { justify-content: flex-end; }
+
+.emotion-chip {
+  font-family: var(--mono); font-size: 9px; padding: 1px 5px; border-radius: 3px;
+  border: 1px solid var(--border);
+}
+.emotion-chip.happy   { color:#00e87a; border-color:#00e87a; }
+.emotion-chip.thinking{ color:#ffb930; border-color:#ffb930; }
+.emotion-chip.error   { color:#ff4050; border-color:#ff4050; }
+.emotion-chip.neutral,
+.emotion-chip.idle    { color:var(--dim); border-color:var(--border2); }
+
+/* Action bubble */
+.action-box {
+  margin-top: 8px; background: var(--faint);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--purple);
+  border-radius: 4px; padding: 8px 10px;
+  font-family: var(--mono); font-size: 11px; color: var(--purple);
+}
+
+/* Thinking dots */
+.thinking-dots { display: flex; gap: 4px; padding: 4px 0; }
+.thinking-dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--teal); opacity: .3;
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+.thinking-dots span:nth-child(2){animation-delay:.2s}
+.thinking-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dotPulse{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+/* ── Input bar ── */
+#input-bar {
+  padding: 14px 20px; background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center; flex-shrink: 0;
+}
+#text-in {
+  flex: 1; background: var(--bg2);
+  border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+  padding: 10px 14px; outline: none; resize: none;
+  height: 42px; transition: border-color .2s;
+}
+#text-in:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(0,229,200,.08); }
+#text-in::placeholder { color: var(--dim); }
+
+.btn {
+  width: 42px; height: 42px; border-radius: 6px;
+  border: 1px solid var(--border2); background: var(--bg2);
+  color: var(--dim); cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.btn:hover        { border-color:var(--teal); color:var(--teal); }
+.btn.active       { background:rgba(0,229,200,.1); border-color:var(--teal); color:var(--teal); }
+.btn.send         { border-color:var(--teal); color:var(--teal); background:rgba(0,229,200,.08);}
+.btn.send:hover   { background:var(--teal); color:var(--bg); }
+
+/* ── Right info panel ── */
+#right-panel {
+  width: 230px; flex-shrink: 0;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 1px; overflow: hidden;
+}
+.rp-section { padding: 14px; border-bottom: 1px solid var(--border); }
+.rp-section.fill { flex:1; overflow-y:auto; }
+.rp-title {
+  font-family: var(--head); font-size: 8px; letter-spacing: 3px;
+  color: var(--dim); margin-bottom: 8px; text-transform: uppercase;
+}
+.intent-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+.intent-tag {
+  padding: 2px 7px; border-radius: 10px; font-family: var(--mono); font-size: 9px;
+  background: var(--faint); border: 1px solid var(--border); color: var(--dim);
+  cursor: default; transition: all .15s;
+}
+.intent-tag.active { color:var(--teal); border-color:var(--teal); background:rgba(0,229,200,.06); }
+
+.cmd-item {
+  font-family: var(--mono); font-size: 10px; padding: 4px 0;
+  border-bottom: 1px solid var(--faint); color: var(--text); cursor: pointer;
+}
+.cmd-item:hover { color: var(--teal); }
+.cmd-item:last-child { border: none; }
+.cmd-item .cmd-key { color: var(--purple); margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">NANO <span>AI DESKTOP ASSISTANT</span></div>
+  <div class="header-right">
+    <div class="status-pill"><div class="dot warn" id="d-ollama"></div>OLLAMA</div>
+    <div class="status-pill"><div class="dot" id="d-avatar"></div>AVATAR</div>
+    <div class="status-pill"><div class="dot" id="d-ws"></div>API</div>
+    <div class="clock" id="clk">--:--:--</div>
+  </div>
+</header>
+
+<main>
+
+<!-- AVATAR PANEL -->
+<div id="avatar-panel">
+
+  <!-- SVG Anime Girl Avatar -->
+  <div id="avatar-svg-wrap" onclick="sendMsg('Hello Nano! Tell me what you can do.')">
+    <div class="avatar-ring" id="av-ring"></div>
+    <svg viewBox="0 0 180 220" xmlns="http://www.w3.org/2000/svg" id="av-svg">
+      <!-- Aura glow -->
+      <ellipse cx="90" cy="110" rx="78" ry="90" fill="none" stroke="#00e5c8" stroke-width="1" opacity=".3"/>
+
+      <!-- Hair back -->
+      <path d="M40 70 Q20 130 30 190 Q60 220 90 225 Q120 220 150 190 Q160 130 140 70"
+            fill="#7c4dff" stroke="#9b59ff" stroke-width=".8" opacity=".9"/>
+
+      <!-- Body / uniform -->
+      <path d="M55 165 Q40 175 36 210 L144 210 Q140 175 125 165 Q108 172 90 172 Q72 172 55 165Z"
+            fill="#1a1f3a" stroke="#00e5c8" stroke-width=".6"/>
+      <!-- Collar -->
+      <path d="M72 165 L90 185 L108 165 L102 161 L90 178 L78 161Z"
+            fill="#0d1124" stroke="#00e5c8" stroke-width=".8"/>
+      <!-- Ribbon bow -->
+      <polygon points="85,178 90,183 95,178 90,174" fill="#00e5c8"/>
+
+      <!-- Neck -->
+      <rect x="82" y="155" width="16" height="14" rx="4" fill="#fde8c8"/>
+
+      <!-- Face -->
+      <ellipse cx="90" cy="112" rx="54" ry="58" fill="#f0d8b0" stroke="#d4b888" stroke-width=".8"/>
+      <!-- Face highlight -->
+      <ellipse cx="90" cy="92" rx="24" ry="18" fill="#fff5e8" opacity=".5"/>
+
+      <!-- Cat ears -->
+      <polygon points="46,72 30,38 62,58" fill="#7c4dff" stroke="#9b59ff" stroke-width=".8"/>
+      <polygon points="47,70 34,44 60,60" fill="#f5b8c8" opacity=".8"/>
+      <polygon points="134,72 150,38 118,58" fill="#7c4dff" stroke="#9b59ff" stroke-width=".8"/>
+      <polygon points="133,70 146,44 120,60" fill="#f5b8c8" opacity=".8"/>
+
+      <!-- Hair front top -->
+      <ellipse cx="90" cy="76" rx="56" ry="32" fill="#8a52ff" stroke="#9b59ff" stroke-width=".6"/>
+
+      <!-- Bangs -->
+      <path d="M60 60 Q56 88 64 96 Q70 90 66 60Z" fill="#7c4dff" stroke="#9b59ff" stroke-width=".5"/>
+      <path d="M70 56 Q65 86 72 100 Q80 94 77 56Z" fill="#8040e0" stroke="#9b59ff" stroke-width=".5"/>
+      <path d="M85 54 Q80 90 86 104 Q92 98 90 54Z" fill="#7c4dff" stroke="#9b59ff" stroke-width=".5"/>
+      <path d="M100 56 Q105 86 98 100 Q90 94 93 56Z" fill="#8040e0" stroke="#9b59ff" stroke-width=".5"/>
+      <path d="M110 58 Q116 88 108 96 Q102 90 106 58Z" fill="#7c4dff" stroke="#9b59ff" stroke-width=".5"/>
+      <path d="M120 60 Q124 88 116 96 Q110 90 114 60Z" fill="#7040c8" stroke="#9b59ff" stroke-width=".5"/>
+      <!-- Hair highlight -->
+      <path d="M82 54 Q80 76 82 86" stroke="#c090ff" stroke-width="1.2" fill="none" opacity=".7"/>
+
+      <!-- LEFT EYE -->
+      <g id="eye-l">
+        <!-- White -->
+        <ellipse cx="72" cy="104" rx="14" ry="12" fill="#f0f8ff" stroke="#c8b098" stroke-width=".6"/>
+        <!-- Iris -->
+        <ellipse cx="72" cy="104" rx="10" ry="10" fill="#00e5c8"/>
+        <!-- Iris shade -->
+        <path d="M62 108 Q72 116 82 108" fill="#006655" opacity=".7"/>
+        <!-- Pupil -->
+        <ellipse cx="72" cy="104" rx="5" ry="5" fill="#0a0a14"/>
+        <!-- Highlights -->
+        <ellipse cx="76" cy="100" rx="3.5" ry="2.5" fill="white"/>
+        <ellipse cx="67" cy="108" rx="2"   ry="1.5" fill="white" opacity=".8"/>
+        <!-- Top lashes -->
+        <line x1="72" y1="94"  x2="60" y2="90"  stroke="#2a1808" stroke-width="1.5"/>
+        <line x1="72" y1="94"  x2="66" y2="89"  stroke="#2a1808" stroke-width="2"/>
+        <line x1="72" y1="94"  x2="72" y2="88"  stroke="#2a1808" stroke-width="2"/>
+        <line x1="72" y1="94"  x2="78" y2="89"  stroke="#2a1808" stroke-width="2"/>
+        <line x1="72" y1="94"  x2="84" y2="90"  stroke="#2a1808" stroke-width="1.5"/>
+        <!-- Eyebrow -->
+        <path d="M59 88 Q72 84 85 88" stroke="#3a2010" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </g>
+
+      <!-- RIGHT EYE -->
+      <g id="eye-r">
+        <ellipse cx="108" cy="104" rx="14" ry="12" fill="#f0f8ff" stroke="#c8b098" stroke-width=".6"/>
+        <ellipse cx="108" cy="104" rx="10" ry="10" fill="#00e5c8"/>
+        <path d="M98 108 Q108 116 118 108" fill="#006655" opacity=".7"/>
+        <ellipse cx="108" cy="104" rx="5" ry="5" fill="#0a0a14"/>
+        <ellipse cx="112" cy="100" rx="3.5" ry="2.5" fill="white"/>
+        <ellipse cx="103" cy="108" rx="2"   ry="1.5" fill="white" opacity=".8"/>
+        <line x1="108" y1="94"  x2="96"  y2="90"  stroke="#2a1808" stroke-width="1.5"/>
+        <line x1="108" y1="94"  x2="102" y2="89"  stroke="#2a1808" stroke-width="2"/>
+        <line x1="108" y1="94"  x2="108" y2="88"  stroke="#2a1808" stroke-width="2"/>
+        <line x1="108" y1="94"  x2="114" y2="89"  stroke="#2a1808" stroke-width="2"/>
+        <line x1="108" y1="94"  x2="120" y2="90"  stroke="#2a1808" stroke-width="1.5"/>
+        <path d="M95 88 Q108 84 121 88" stroke="#3a2010" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </g>
+
+      <!-- Nose -->
+      <ellipse cx="90" cy="122" rx="2.5" ry="1.8" fill="#d4a870"/>
+
+      <!-- Mouth (idle smile) -->
+      <g id="mouth">
+        <path id="mouth-smile" d="M80 134 Q90 142 100 134" stroke="#c06080" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <ellipse id="mouth-open" cx="90" cy="136" rx="8" ry="0" fill="#c0404a" stroke="#8a2030" stroke-width=".8" style="display:none"/>
+        <rect  id="mouth-teeth" x="82" y="134" width="16" height="3" rx="1.5" fill="white" style="display:none"/>
+      </g>
+
+      <!-- Blush circles -->
+      <ellipse id="blush-l" cx="58" cy="120" rx="11" ry="7" fill="#ff8fab" opacity="0"/>
+      <ellipse id="blush-r" cx="122" cy="120" rx="11" ry="7" fill="#ff8fab" opacity="0"/>
+
+      <!-- Hair clip -->
+      <rect x="36" y="74" width="12" height="8" rx="2" fill="#00e5c8" opacity=".9"/>
+      <text x="42" y="80" text-anchor="middle" font-size="6" fill="white">✦</text>
+
+      <!-- Star accessory -->
+      <text x="140" y="76" text-anchor="middle" font-size="10" fill="#9b59ff">★</text>
+    </svg>
+  </div>
+
+  <div class="emotion-display" id="av-emotion">IDLE</div>
+
+  <!-- Voice visualiser bars -->
+  <div style="display:flex;gap:3px;align-items:flex-end;height:24px;width:100%;justify-content:center" id="voice-bars">
+    <script>
+      // Rendered dynamically
+    </script>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-row">
+    <div class="stat-label"><span>RESPONSE</span><span id="lat-val">—</span></div>
+    <div class="bar-track"><div class="bar-fill" id="lat-bar" style="width:0%;background:var(--teal)"></div></div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-label"><span>MEMORY</span><span id="mem-val">0</span></div>
+    <div class="bar-track"><div class="bar-fill" id="mem-bar" style="width:20%;background:var(--purple)"></div></div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-label"><span>SESSION</span><span id="turn-val">0 turns</span></div>
+    <div class="bar-track"><div class="bar-fill" id="turn-bar" style="width:0%;background:var(--pink)"></div></div>
+  </div>
+
+</div>
+
+<!-- CHAT AREA -->
+<div id="chat-area">
+  <div id="messages">
+    <div class="msg nano">
+      <div class="msg-icon">N</div>
+      <div>
+        <div class="bubble">
+          Konnichiwa! I am Nano, your AI desktop assistant. I can write code,
+          run commands, manage your files, update your CV, search the web,
+          and much more. How can I help you today?
+        </div>
+        <div class="msg-meta">
+          <span>NANO</span>
+          <span class="emotion-chip happy">HAPPY</span>
+          <span>boot</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div id="input-bar">
+    <button class="btn" id="btn-mic" onclick="toggleMic()" title="Voice input">🎙</button>
+    <textarea id="text-in" placeholder="Type a command, ask a question, or say 'write me a Python app'…"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
+      oninput="autoH(this)"></textarea>
+    <button class="btn" onclick="sendMsg('what is on my screen')" title="Screen capture">🖥</button>
+    <button class="btn send" onclick="sendMsg()" title="Send">↑</button>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="right-panel">
+  <div class="rp-section">
+    <div class="rp-title">Intent</div>
+    <div class="intent-grid" id="intent-grid">
+      <div class="intent-tag active">chat</div>
+      <div class="intent-tag">code</div>
+      <div class="intent-tag">cmd</div>
+      <div class="intent-tag">file</div>
+      <div class="intent-tag">app</div>
+      <div class="intent-tag">cv</div>
+      <div class="intent-tag">job</div>
+      <div class="intent-tag">email</div>
+      <div class="intent-tag">search</div>
+      <div class="intent-tag">screen</div>
+      <div class="intent-tag">memory</div>
+    </div>
+  </div>
+
+  <div class="rp-section fill">
+    <div class="rp-title">Quick commands</div>
+    <div class="cmd-item" onclick="sendMsg('write a Flask web app with login')">
+      <span class="cmd-key">›</span>Write Flask app
+    </div>
+    <div class="cmd-item" onclick="sendMsg('create a todo list in HTML')">
+      <span class="cmd-key">›</span>Create HTML todo app
+    </div>
+    <div class="cmd-item" onclick="sendMsg('run ipconfig')">
+      <span class="cmd-key">›</span>Run ipconfig
+    </div>
+    <div class="cmd-item" onclick="sendMsg('check disk space')">
+      <span class="cmd-key">›</span>Check disk space
+    </div>
+    <div class="cmd-item" onclick="sendMsg('open VS Code')">
+      <span class="cmd-key">›</span>Open VS Code
+    </div>
+    <div class="cmd-item" onclick="sendMsg('update my CV with Python and AI skills')">
+      <span class="cmd-key">›</span>Update CV
+    </div>
+    <div class="cmd-item" onclick="sendMsg('find Python developer jobs in Pune')">
+      <span class="cmd-key">›</span>Find jobs in Pune
+    </div>
+    <div class="cmd-item" onclick="sendMsg('read my emails')">
+      <span class="cmd-key">›</span>Read emails
+    </div>
+    <div class="cmd-item" onclick="sendMsg('search for latest AI news')">
+      <span class="cmd-key">›</span>Latest AI news
+    </div>
+    <div class="cmd-item" onclick="sendMsg('what is on my screen')">
+      <span class="cmd-key">›</span>Read my screen
+    </div>
+    <div class="cmd-item" onclick="sendMsg('what do you remember about me')">
+      <span class="cmd-key">›</span>Show my memory
+    </div>
+    <div class="cmd-item" onclick="sendMsg('create a folder called MCA Project on desktop')">
+      <span class="cmd-key">›</span>Create project folder
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const API = 'http://localhost:8000';
+let turns = 0, ws = null;
+
+// ── Clock ─────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clk').textContent = new Date().toTimeString().slice(0,8);
+}, 1000);
+
+// ── Voice bars ────────────────────────────────────────────────────────────
+const vb = document.getElementById('voice-bars');
+const barCount = 18;
+for (let i = 0; i < barCount; i++) {
+  const b = document.createElement('div');
+  b.style.cssText = `width:5px;background:var(--teal);border-radius:2px;height:4px;opacity:.3;transition:height .1s`;
+  b.id = 'vbar' + i;
+  vb.appendChild(b);
+}
+let voiceActive = false;
+function animateBars(active) {
+  for (let i = 0; i < barCount; i++) {
+    const el = document.getElementById('vbar' + i);
+    if (active) {
+      const h = 4 + Math.random() * 18;
+      el.style.height = h + 'px';
+      el.style.opacity = '1';
+    } else {
+      el.style.height = '4px';
+      el.style.opacity = '.3';
+    }
+  }
+}
+setInterval(() => { if (voiceActive) animateBars(true); }, 100);
+
+// ── Avatar state ──────────────────────────────────────────────────────────
+const EMOTION_COLORS = {
+  idle:'#00e5c8', listening:'#1a8fff', thinking:'#ffb930',
+  speaking:'#00e5c8', happy:'#00e87a', error:'#ff4050',
+};
+function setAvatarState(state) {
+  const col = EMOTION_COLORS[state] || '#00e5c8';
+  document.getElementById('av-ring').style.borderColor = col;
+  document.getElementById('av-ring').style.boxShadow   = `0 0 18px ${col}55`;
+  document.getElementById('av-emotion').textContent = state.toUpperCase();
+  document.getElementById('av-emotion').style.color  = col;
+
+  // Eye color
+  document.querySelectorAll('#eye-l ellipse:nth-child(2), #eye-r ellipse:nth-child(2)')
+    .forEach(el => el.setAttribute('fill', col));
+
+  // Blush on happy/thinking
+  const blushOp = (state === 'happy' || state === 'thinking') ? '0.4' : '0';
+  document.getElementById('blush-l').setAttribute('opacity', blushOp);
+  document.getElementById('blush-r').setAttribute('opacity', blushOp);
+
+  // Mouth animation on speaking
+  const speaking = state === 'speaking';
+  voiceActive = speaking;
+  animateBars(speaking);
+  if (speaking) {
+    animateMouth(true);
+  } else {
+    animateMouth(false);
+  }
+}
+
+let mouthInterval = null;
+function animateMouth(on) {
+  if (mouthInterval) clearInterval(mouthInterval);
+  const smile  = document.getElementById('mouth-smile');
+  const open   = document.getElementById('mouth-open');
+  const teeth  = document.getElementById('mouth-teeth');
+  if (!on) {
+    smile.style.display = '';
+    open.style.display  = 'none';
+    teeth.style.display = 'none';
+    return;
+  }
+  const seq = [0,2,5,8,10,8,5,2,0,0];
+  let i = 0;
+  mouthInterval = setInterval(() => {
+    const mo = seq[i % seq.length];
+    smile.style.display = 'none';
+    open.style.display  = '';
+    open.setAttribute('ry', mo);
+    teeth.style.display = mo >= 4 ? '' : 'none';
+    i++;
+  }, 80);
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────
+function connectWS() {
+  try {
+    ws = new WebSocket('ws://localhost:8000/ws');
+    ws.onopen    = () => { dot('ws','on'); log('WebSocket connected'); };
+    ws.onclose   = () => { dot('ws','off'); setTimeout(connectWS, 3000); };
+    ws.onmessage = e  => handleWS(JSON.parse(e.data));
+  } catch(err) { dot('ws','off'); }
+}
+function handleWS(data) {
+  if (data.type === 'thinking') { showThinking(); return; }
+  if (data.type === 'response') {
+    removeThinking();
+    addNanoMsg(data);
+  }
+}
+
+// ── Send message ──────────────────────────────────────────────────────────
+async function sendMsg(text) {
+  const inp = document.getElementById('text-in');
+  const t   = text || inp.value.trim();
+  if (!t) return;
+  inp.value = '';
+  inp.style.height = '42px';
+
+  addUserMsg(t);
+  setAvatarState('thinking');
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({text: t, session_id: 'ui'}));
+    showThinking();
+  } else {
+    showThinking();
+    try {
+      const t0   = Date.now();
+      const resp = await fetch(`${API}/chat`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({text: t, session_id: 'ui'}),
+      });
+      const data = await resp.json();
+      data.latency_ms = Date.now() - t0;
+      removeThinking();
+      addNanoMsg(data);
+    } catch(e) {
+      removeThinking();
+      addNanoMsg({
+        response: 'Backend not reachable. Start Nano first: python main.py --text',
+        emotion: 'error', action_plan: [],
+      });
+    }
+  }
+}
+
+// ── Message rendering ────────────────────────────────────────────────────
+function addUserMsg(text) {
+  turns++;
+  document.getElementById('turn-val').textContent = turns + ' turns';
+  document.getElementById('turn-bar').style.width = Math.min(turns * 5, 100) + '%';
+  append(`<div class="msg user">
+    <div class="msg-icon">U</div>
+    <div>
+      <div class="bubble">${esc(text)}</div>
+      <div class="msg-meta"><span>YOU</span><span>${now()}</span></div>
+    </div>
+  </div>`);
+}
+
+function addNanoMsg(data) {
+  const resp   = data.response || data.final_response || '';
+  const emo    = data.emotion || 'idle';
+  const action = data.action  || data.action_result || '';
+  const lat    = data.latency_ms;
+
+  setAvatarState('speaking');
+  updateIntent(data.intent);
+  if (lat) updateLatency(lat);
+
+  let actionHtml = '';
+  if (action && action.length > 2) {
+    actionHtml = `<div class="action-box">⚡ ${esc(action.slice(0,200))}</div>`;
+  }
+
+  append(`<div class="msg nano">
+    <div class="msg-icon">N</div>
+    <div>
+      <div class="bubble">${esc(resp)}${actionHtml}</div>
+      <div class="msg-meta">
+        <span>NANO</span>
+        <span class="emotion-chip ${emo}">${emo.toUpperCase()}</span>
+        ${lat ? `<span>${lat}ms</span>` : ''}
+        <span>${now()}</span>
+      </div>
+    </div>
+  </div>`);
+
+  setTimeout(() => setAvatarState('idle'), 2000);
+}
+
+let thinkEl = null;
+function showThinking() {
+  if (thinkEl) return;
+  thinkEl = document.createElement('div');
+  thinkEl.className = 'msg nano';
+  thinkEl.innerHTML = `<div class="msg-icon">N</div>
+    <div><div class="bubble"><div class="thinking-dots">
+      <span></span><span></span><span></span>
+    </div></div></div>`;
+  document.getElementById('messages').appendChild(thinkEl);
+  document.getElementById('messages').scrollTop = 9999;
+}
+function removeThinking() {
+  if (thinkEl) { thinkEl.remove(); thinkEl = null; }
+}
+
+// ── Intent highlight ────────────────────────────────────────────────────
+function updateIntent(intent) {
+  if (!intent) return;
+  document.querySelectorAll('.intent-tag').forEach(t => {
+    t.classList.toggle('active', t.textContent === intent);
+  });
+}
+
+// ── Latency bar ─────────────────────────────────────────────────────────
+function updateLatency(ms) {
+  document.getElementById('lat-val').textContent = ms + 'ms';
+  document.getElementById('lat-bar').style.width = Math.min(ms / 20, 100) + '%';
+}
+
+// ── Voice input ─────────────────────────────────────────────────────────
+let mic = null;
+function toggleMic() {
+  const btn = document.getElementById('btn-mic');
+  if (mic) {
+    mic.stop(); mic = null;
+    btn.classList.remove('active');
+    setAvatarState('idle');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Browser does not support voice input.'); return; }
+  mic = new SR();
+  mic.continuous = false;
+  mic.lang = 'en-US';
+  mic.onstart   = () => { btn.classList.add('active'); setAvatarState('listening'); };
+  mic.onresult  = e => {
+    const t = e.results[0][0].transcript;
+    document.getElementById('text-in').value = t;
+    mic = null; btn.classList.remove('active');
+    setTimeout(sendMsg, 100);
+  };
+  mic.onerror = () => { mic = null; btn.classList.remove('active'); setAvatarState('idle'); };
+  mic.start();
+}
+
+// ── Health check ────────────────────────────────────────────────────────
+async function health() {
+  try {
+    const r = await fetch(`${API}/health`, {signal: AbortSignal.timeout(3000)});
+    const d = await r.json();
+    dot('ollama', d.ollama ? 'on' : 'off');
+    dot('avatar', d.avatar ? 'on' : 'warn');
+  } catch(e) { dot('ollama','off'); }
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+function dot(id, state) {
+  const el = document.getElementById('d-' + id);
+  if (!el) return;
+  el.className = 'dot' + (state === 'on' ? ' on' : state === 'warn' ? ' warn' : '');
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function now() { return new Date().toTimeString().slice(0,8); }
+function append(html) {
+  const m = document.getElementById('messages');
+  m.insertAdjacentHTML('beforeend', html);
+  m.scrollTop = 9999;
+}
+function log(msg) { console.log('[Nano]', msg); }
+function autoH(el) {
+  el.style.height = '42px';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ── Init ────────────────────────────────────────────────────────────────
+connectWS();
+health();
+setInterval(health, 30000);
+setAvatarState('idle');
+</script>
+</body>
+</html>
