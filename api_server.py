@@ -36,6 +36,38 @@ SYSTEM_PROMPT = (
     "Keep replies under three sentences. Be direct and friendly."
 )
 
+# ── Global state ──────────────────────────────────────────────────────────────
+
+class State:
+    router   = None
+    tts      = None
+    history  = []
+
+state = State()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("[Nano API] Starting up...")
+    state.router = Router(system_prompt=SYSTEM_PROMPT)
+    state.tts    = JapaneseTTSSpeaker()
+    print("[Nano API] Ready ✓")
+    yield
+    print("[Nano API] Shutdown.")
+
+
+app = FastAPI(title="Nano AI Assistant", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+)
+
+# Serve UI files at /ui/
+try:
+    app.mount("/ui", StaticFiles(directory="ui"), name="ui")
+except Exception:
+    pass
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
