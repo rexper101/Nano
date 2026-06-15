@@ -13,6 +13,7 @@ Run:
 
 import time
 import threading
+import socket
 import sounddevice as sd
 import numpy as np
 from queue import Queue
@@ -176,7 +177,28 @@ class Nano:
     def _ui(self):
         import os
         ui = os.path.abspath("ui/index.html")
-        print(f"\n  \033[36mDashboard → open in browser:\033[0m")
+
+        # Try to start local API server (uvicorn) if port 8000 not in use
+        def _port_open(host='127.0.0.1', port=8000):
+            try:
+                s = socket.socket()
+                s.settimeout(0.4)
+                s.connect((host, port))
+                s.close()
+                return True
+            except Exception:
+                return False
+
+        if not _port_open():
+            def _run_api():
+                try:
+                    import uvicorn
+                    uvicorn.run("api_server:app", host="127.0.0.1", port=8000, log_level="warning")
+                except Exception as e:
+                    print(f"  API: failed to start ({e})")
+            threading.Thread(target=_run_api, daemon=True).start()
+
+        print(f"\n  \033[36mDashboard → open in browser (or visit http://localhost:8000):\033[0m")
         print(f"  file:///{ui}\n")
 
 
