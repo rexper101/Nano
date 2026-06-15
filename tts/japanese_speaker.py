@@ -114,7 +114,7 @@ class JapaneseTTSSpeaker:
                     text,
                     voice=self._voice,
                     rate="+5%",
-                    pitch="+8%",
+                    # pitch not set — causes issues on some systems
                 )
                 audio_data = b""
                 async for chunk in communicate.stream():
@@ -122,20 +122,17 @@ class JapaneseTTSSpeaker:
                         audio_data += chunk["data"]
                 return audio_data
 
-            # Run async in sync context
+            # Windows needs a fresh event loop — always create one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
                 audio_bytes = loop.run_until_complete(_run())
-            except RuntimeError:
-                audio_bytes = asyncio.run(_run())
+            finally:
+                loop.close()
 
             if not audio_bytes:
                 return None, 0
 
-            # Edge TTS returns MP3 — convert to float32 WAV array
             return self._mp3_to_array(audio_bytes)
 
         except Exception as e:
@@ -210,13 +207,13 @@ class JapaneseTTSSpeaker:
         try:
             import pyttsx3
             engine = pyttsx3.init()
-            # Try to select female voice
+            # Select female voice (Zira on Windows)
             for v in engine.getProperty("voices"):
-                if any(x in v.name.lower() for x in ["female","zira","hazel"]):
+                if any(x in v.name.lower() for x in ["zira","hazel","female","helen"]):
                     engine.setProperty("voice", v.id)
                     break
-            engine.setProperty("rate",  160)
-            engine.setProperty("pitch", 180)
+            engine.setProperty("rate", 160)
+            # NOTE: pitch is not supported on Windows SAPI5 — skip it
             engine.say(text)
             engine.runAndWait()
         except Exception as e:
