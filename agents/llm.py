@@ -26,7 +26,11 @@ class LLMClient:
         messages = [{"role": "system", "content": self.system_prompt}]
 
         for msg in history[-10:]:
-            messages.append({"role": msg.role, "content": msg.content})
+            # history items are plain dicts {"role":..., "content":...}
+            if isinstance(msg, dict):
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            else:
+                messages.append({"role": msg.role, "content": msg.content})
 
         messages.append({"role": "user", "content": user_text})
 
