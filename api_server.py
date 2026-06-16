@@ -28,11 +28,12 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from agents.router   import Router
-from tts.japanese_speaker import JapaneseTTSSpeaker
+from tts.japanese_speaker import NanoTTSSpeaker
 
 
 SYSTEM_PROMPT = (
-    "You are Nano, a cheerful AI desktop assistant with a Japanese accent. "
+    "You are Nano, a cheerful and charming AI desktop assistant. "
+    "You have a cute, playful personality — warm, witty, and slightly teasing. "
     "Keep replies under three sentences. Be direct and friendly."
 )
 
@@ -50,7 +51,7 @@ state = State()
 async def lifespan(app: FastAPI):
     print("[Nano API] Starting up...")
     state.router = Router(system_prompt=SYSTEM_PROMPT)
-    state.tts    = JapaneseTTSSpeaker()
+    state.tts    = NanoTTSSpeaker()
     print("[Nano API] Ready ✓")
     yield
     print("[Nano API] Shutdown.")
