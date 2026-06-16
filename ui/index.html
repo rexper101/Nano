@@ -283,508 +283,168 @@ main {
     <svg viewBox="0 0 180 220" xmlns="http://www.w3.org/2000/svg" id="av-svg">
       <!-- Aura glow -->
       <ellipse cx="90" cy="110" rx="78" ry="90" fill="none" stroke="#00e5c8" stroke-width="1" opacity=".3"/>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Nano — JARVIS Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@300;500&display=swap" rel="stylesheet">
+    <style>
+      :root{--bg:#020305;--panel:#06101a;--accent:#00f0c8;--accent2:#5b7dff;--dim:#4b5a78;--glass:rgba(255,255,255,0.03);--mono:'Roboto Mono', monospace}
+      *{box-sizing:border-box;margin:0;padding:0}
+      html,body{height:100%;background:radial-gradient(ellipse at 20% 10%,#06202b 0%, transparent 40%),var(--bg);font-family:var(--mono);color:#dcecff}
+      .wrap{display:grid;grid-template-columns:320px 1fr 300px;grid-template-rows:72px 1fr 88px;height:100vh;gap:12px;padding:14px}
 
-      <!-- Hair back -->
-      <path d="M40 70 Q20 130 30 190 Q60 220 90 225 Q120 220 150 190 Q160 130 140 70"
-            fill="#7c4dff" stroke="#9b59ff" stroke-width=".8" opacity=".9"/>
+      /* Header */
+      .hdr{grid-column:1/-1;background:linear-gradient(90deg,#02101844,#03102a44);border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-radius:8px}
+      .brand{display:flex;align-items:center;gap:12px}
+      .brand .logo{font-family:Orbitron,monospace;color:var(--accent);font-weight:900;letter-spacing:6px}
+      .brand .sub{font-size:11px;color:var(--dim)}
+      .status{display:flex;gap:12px;align-items:center}
+      .dot{width:10px;height:10px;border-radius:50%;background:#2b2f3a;box-shadow:0 0 10px rgba(0,0,0,.6)}
+      .dot.on{background:var(--accent);box-shadow:0 0 14px var(--accent)}
+      .dot.warn{background:#ffb84d;box-shadow:0 0 12px #ffb84d}
+      .clock{font-family:Orbitron;font-size:13px;color:var(--accent2)}
 
-      <!-- Body / uniform -->
-      <path d="M55 165 Q40 175 36 210 L144 210 Q140 175 125 165 Q108 172 90 172 Q72 172 55 165Z"
-            fill="#1a1f3a" stroke="#00e5c8" stroke-width=".6"/>
-      <!-- Collar -->
-      <path d="M72 165 L90 185 L108 165 L102 161 L90 178 L78 161Z"
-            fill="#0d1124" stroke="#00e5c8" stroke-width=".8"/>
-      <!-- Ribbon bow -->
-      <polygon points="85,178 90,183 95,178 90,174" fill="#00e5c8"/>
+      /* Left panel - systems */
+      .left{background:linear-gradient(180deg,#04121a88,#03122388);border-radius:10px;padding:18px;border:1px solid rgba(255,255,255,0.03)}
+      .left h3{font-size:12px;color:var(--dim);letter-spacing:2px;margin-bottom:12px}
+      .sys-list{display:flex;flex-direction:column;gap:10px}
+      .sys{display:flex;align-items:center;gap:10px}
+      .sys .name{flex:1;color:#cfeef3}
+      .meter{height:8px;background:rgba(255,255,255,0.04);border-radius:6px;overflow:hidden}
+      .meter > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:40%}
 
-      <!-- Neck -->
-      <rect x="82" y="155" width="16" height="14" rx="4" fill="#fde8c8"/>
+      /* Center - hologram & messages */
+      .center{display:flex;flex-direction:column;gap:10px}
+      .holo{height:260px;border-radius:12px;background:linear-gradient(180deg,rgba(11,22,28,0.35),rgba(3,6,10,0.2));border:1px solid rgba(255,255,255,0.025);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+      .holo .ring{position:absolute;border-radius:50%;width:360px;height:360px;left:50%;top:40%;transform:translate(-50%,-50%);background:conic-gradient(from 120deg,var(--accent)22%,transparent 22%);opacity:.06;filter:blur(16px)}
+      .holo .core{width:220px;height:220px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 30%,#052733,transparent 40%);box-shadow:0 0 60px rgba(0,240,200,0.06)}
+      .holo .core .txt{font-family:Orbitron;font-size:18px;color:var(--accent);letter-spacing:6px}
 
-      <!-- Face -->
-      <ellipse cx="90" cy="112" rx="54" ry="58" fill="#f0d8b0" stroke="#d4b888" stroke-width=".8"/>
-      <!-- Face highlight -->
-      <ellipse cx="90" cy="92" rx="24" ry="18" fill="#fff5e8" opacity=".5"/>
+      .messages{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:10px;padding:14px;flex:1;overflow:auto;border:1px solid rgba(255,255,255,0.02)}
+      .msg{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+      .msg.mine{flex-direction:row-reverse}
+      .bubble{max-width:78%;padding:10px 14px;border-radius:8px;background:#021827;color:#dff6ef}
+      .bubble.self{background:linear-gradient(90deg,#2a2f44,#172034);color:#d7dff6}
+      .meta{font-size:11px;color:var(--dim);margin-top:6px}
 
-      <!-- Cat ears -->
-      <polygon points="46,72 30,38 62,58" fill="#7c4dff" stroke="#9b59ff" stroke-width=".8"/>
-      <polygon points="47,70 34,44 60,60" fill="#f5b8c8" opacity=".8"/>
-      <polygon points="134,72 150,38 118,58" fill="#7c4dff" stroke="#9b59ff" stroke-width=".8"/>
-      <polygon points="133,70 146,44 120,60" fill="#f5b8c8" opacity=".8"/>
+      /* Right panel */
+      .right{background:linear-gradient(180deg,#03131a66,#02121a66);border-radius:10px;padding:18px;border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column}
+      .right h3{font-size:12px;color:var(--dim);letter-spacing:2px;margin-bottom:10px}
+      .quick{display:flex;flex-direction:column;gap:8px}
+      .quick button{background:transparent;border:1px solid rgba(255,255,255,0.03);color:#bfeee0;padding:8px;border-radius:8px;text-align:left;cursor:pointer}
 
-      <!-- Hair front top -->
-      <ellipse cx="90" cy="76" rx="56" ry="32" fill="#8a52ff" stroke="#9b59ff" stroke-width=".6"/>
+      /* Footer input */
+      .footer{grid-column:1/-1;display:flex;gap:12px;align-items:center}
+      .input{flex:1;background:linear-gradient(90deg,#021020,#031224);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);display:flex;gap:8px}
+      .input textarea{flex:1;background:transparent;border:none;color:#dfeffd;outline:none;resize:none;height:56px;font-family:var(--mono);padding:6px}
+      .controls{display:flex;gap:8px}
+      .btn{background:linear-gradient(180deg,var(--accent),var(--accent2));border:none;color:#021018;padding:10px 14px;border-radius:8px;cursor:pointer}
 
-      <!-- Bangs -->
-      <path d="M60 60 Q56 88 64 96 Q70 90 66 60Z" fill="#7c4dff" stroke="#9b59ff" stroke-width=".5"/>
-      <path d="M70 56 Q65 86 72 100 Q80 94 77 56Z" fill="#8040e0" stroke="#9b59ff" stroke-width=".5"/>
-      <path d="M85 54 Q80 90 86 104 Q92 98 90 54Z" fill="#7c4dff" stroke="#9b59ff" stroke-width=".5"/>
-      <path d="M100 56 Q105 86 98 100 Q90 94 93 56Z" fill="#8040e0" stroke="#9b59ff" stroke-width=".5"/>
-      <path d="M110 58 Q116 88 108 96 Q102 90 106 58Z" fill="#7c4dff" stroke="#9b59ff" stroke-width=".5"/>
-      <path d="M120 60 Q124 88 116 96 Q110 90 114 60Z" fill="#7040c8" stroke="#9b59ff" stroke-width=".5"/>
-      <!-- Hair highlight -->
-      <path d="M82 54 Q80 76 82 86" stroke="#c090ff" stroke-width="1.2" fill="none" opacity=".7"/>
+      /* small responsive */
+      @media(max-width:980px){.wrap{grid-template-columns:1fr;grid-template-rows:72px auto 1fr 88px}.left,.right{display:none}}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="hdr">
+        <div class="brand"><div class="logo">NANO</div><div class="sub">JARVIS MODE</div></div>
+        <div class="status">
+          <div style="display:flex;gap:8px;align-items:center"><div id="d-ollama" class="dot"></div><div style="font-size:12px;color:var(--dim)">OLLAMA</div></div>
+          <div style="display:flex;gap:8px;align-items:center"><div id="d-ws" class="dot"></div><div style="font-size:12px;color:var(--dim)">API</div></div>
+          <div class="clock" id="clk">--:--:--</div>
+        </div>
+      </div>
 
-      <!-- LEFT EYE -->
-      <g id="eye-l">
-        <!-- White -->
-        <ellipse cx="72" cy="104" rx="14" ry="12" fill="#f0f8ff" stroke="#c8b098" stroke-width=".6"/>
-        <!-- Iris -->
-        <ellipse cx="72" cy="104" rx="10" ry="10" fill="#00e5c8"/>
-        <!-- Iris shade -->
-        <path d="M62 108 Q72 116 82 108" fill="#006655" opacity=".7"/>
-        <!-- Pupil -->
-        <ellipse cx="72" cy="104" rx="5" ry="5" fill="#0a0a14"/>
-        <!-- Highlights -->
-        <ellipse cx="76" cy="100" rx="3.5" ry="2.5" fill="white"/>
-        <ellipse cx="67" cy="108" rx="2"   ry="1.5" fill="white" opacity=".8"/>
-        <!-- Top lashes -->
-        <line x1="72" y1="94"  x2="60" y2="90"  stroke="#2a1808" stroke-width="1.5"/>
-        <line x1="72" y1="94"  x2="66" y2="89"  stroke="#2a1808" stroke-width="2"/>
-        <line x1="72" y1="94"  x2="72" y2="88"  stroke="#2a1808" stroke-width="2"/>
-        <line x1="72" y1="94"  x2="78" y2="89"  stroke="#2a1808" stroke-width="2"/>
-        <line x1="72" y1="94"  x2="84" y2="90"  stroke="#2a1808" stroke-width="1.5"/>
-        <!-- Eyebrow -->
-        <path d="M59 88 Q72 84 85 88" stroke="#3a2010" stroke-width="2" fill="none" stroke-linecap="round"/>
-      </g>
+      <div class="left">
+        <h3>SYSTEMS</h3>
+        <div class="sys-list">
+          <div class="sys"><div class="name">LLM</div><div class="meter"><i style="width:72%"></i></div></div>
+          <div class="sys"><div class="name">TTS</div><div class="meter"><i style="width:60%"></i></div></div>
+          <div class="sys"><div class="name">STT</div><div class="meter"><i style="width:48%"></i></div></div>
+          <div class="sys"><div class="name">MEMORY</div><div class="meter"><i id="mem-bar" style="width:18%"></i></div></div>
+        </div>
+      </div>
 
-      <!-- RIGHT EYE -->
-      <g id="eye-r">
-        <ellipse cx="108" cy="104" rx="14" ry="12" fill="#f0f8ff" stroke="#c8b098" stroke-width=".6"/>
-        <ellipse cx="108" cy="104" rx="10" ry="10" fill="#00e5c8"/>
-        <path d="M98 108 Q108 116 118 108" fill="#006655" opacity=".7"/>
-        <ellipse cx="108" cy="104" rx="5" ry="5" fill="#0a0a14"/>
-        <ellipse cx="112" cy="100" rx="3.5" ry="2.5" fill="white"/>
-        <ellipse cx="103" cy="108" rx="2"   ry="1.5" fill="white" opacity=".8"/>
-        <line x1="108" y1="94"  x2="96"  y2="90"  stroke="#2a1808" stroke-width="1.5"/>
-        <line x1="108" y1="94"  x2="102" y2="89"  stroke="#2a1808" stroke-width="2"/>
-        <line x1="108" y1="94"  x2="108" y2="88"  stroke="#2a1808" stroke-width="2"/>
-        <line x1="108" y1="94"  x2="114" y2="89"  stroke="#2a1808" stroke-width="2"/>
-        <line x1="108" y1="94"  x2="120" y2="90"  stroke="#2a1808" stroke-width="1.5"/>
-        <path d="M95 88 Q108 84 121 88" stroke="#3a2010" stroke-width="2" fill="none" stroke-linecap="round"/>
-      </g>
+      <div class="center">
+        <div class="holo" id="holo">
+          <div class="ring"></div>
+          <div class="core"><div class="txt">NANO</div></div>
+        </div>
 
-      <!-- Nose -->
-      <ellipse cx="90" cy="122" rx="2.5" ry="1.8" fill="#d4a870"/>
+        <div class="messages" id="messages">
+          <div class="msg nano"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(90deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center">N</div>
+            <div style="flex:1">
+              <div class="bubble">Konnichiwa! Nano online. Ask me anything.</div>
+              <div class="meta">NANO • boot</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <!-- Mouth (idle smile) -->
-      <g id="mouth">
-        <path id="mouth-smile" d="M80 134 Q90 142 100 134" stroke="#c06080" stroke-width="2" fill="none" stroke-linecap="round"/>
-        <ellipse id="mouth-open" cx="90" cy="136" rx="8" ry="0" fill="#c0404a" stroke="#8a2030" stroke-width=".8" style="display:none"/>
-        <rect  id="mouth-teeth" x="82" y="134" width="16" height="3" rx="1.5" fill="white" style="display:none"/>
-      </g>
+      <div class="right">
+        <h3>QUICK ACTIONS</h3>
+        <div class="quick">
+          <button onclick="sendMsg('write a Flask web app with login')">Write Flask app</button>
+          <button onclick="sendMsg('run ipconfig')">Run ipconfig</button>
+          <button onclick="sendMsg('what is on my screen')">Read screen</button>
+          <button onclick="sendMsg('what do you remember about me')">Show memory</button>
+        </div>
+      </div>
 
-      <!-- Blush circles -->
-      <ellipse id="blush-l" cx="58" cy="120" rx="11" ry="7" fill="#ff8fab" opacity="0"/>
-      <ellipse id="blush-r" cx="122" cy="120" rx="11" ry="7" fill="#ff8fab" opacity="0"/>
+      <div class="footer">
+        <div class="input">
+          <textarea id="text-in" placeholder="Command or question…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}" oninput="autoH(this)"></textarea>
+          <div class="controls">
+            <button id="btn-mic" class="btn" onclick="toggleMic()">🎙</button>
+            <button class="btn" onclick="sendMsg()">SEND</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-      <!-- Hair clip -->
-      <rect x="36" y="74" width="12" height="8" rx="2" fill="#00e5c8" opacity=".9"/>
-      <text x="42" y="80" text-anchor="middle" font-size="6" fill="white">✦</text>
-
-      <!-- Star accessory -->
-      <text x="140" y="76" text-anchor="middle" font-size="10" fill="#9b59ff">★</text>
-    </svg>
-  </div>
-
-  <div class="emotion-display" id="av-emotion">IDLE</div>
-
-  <!-- Voice visualiser bars -->
-  <div style="display:flex;gap:3px;align-items:flex-end;height:24px;width:100%;justify-content:center" id="voice-bars">
     <script>
-      // Rendered dynamically
+      const API = 'http://localhost:8000';
+      let ws = null, turns = 0;
+
+      // Clock
+      setInterval(()=>document.getElementById('clk').textContent=new Date().toTimeString().slice(0,8),1000);
+
+      // Helpers
+      function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+      function now(){return new Date().toTimeString().slice(0,8)}
+      function append(html){const m=document.getElementById('messages');m.insertAdjacentHTML('beforeend',html);m.scrollTop=99999}
+
+      // Connection indicators
+      function dot(id,on){const el=document.getElementById('d-'+id); if(!el) return; el.className='dot'+(on?' on':'')}
+
+      // WebSocket
+      function connectWS(){try{ws=new WebSocket('ws://localhost:8000/ws');ws.onopen=()=>{dot('ws',true);console.log('WS open')};ws.onclose=()=>{dot('ws',false);setTimeout(connectWS,2500)};ws.onmessage=e=>handleWS(JSON.parse(e.data))}catch(e){dot('ws',false)}}
+      function handleWS(d){if(d.type==='thinking'){showThinking();return} if(d.type==='response'){removeThinking(); addNanoMsg(d)}}
+
+      // Send message
+      async function sendMsg(text){const inp=document.getElementById('text-in');const t=text||inp.value.trim(); if(!t) return; inp.value=''; autoH(inp); addUserMsg(t); if(ws && ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({text:t,session_id:'ui'})); showThinking(); return;} showThinking(); try{const t0=Date.now(); const r=await fetch(API+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t,session_id:'ui'})}); const data=await r.json(); data.latency_ms=Date.now()-t0; removeThinking(); addNanoMsg(data);}catch(e){removeThinking(); addNanoMsg({response:'Backend not reachable. Start Nano first: python main.py --text', emotion:'error'})}}
+
+      function addUserMsg(text){turns++; append(`<div class="msg mine"><div style="width:42px;height:42px;border-radius:50%;background:#2a2f44;display:flex;align-items:center;justify-content:center">U</div><div style="flex:1"><div class="bubble self">${esc(text)}</div><div class="meta">YOU • ${now()}</div></div></div>`)}
+
+      function addNanoMsg(data){const resp=data.response||''; const emo=data.emotion||'idle'; const lat=data.latency_ms||0; append(`<div class="msg"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(90deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center">N</div><div style="flex:1"><div class="bubble">${esc(resp)}</div><div class="meta">NANO • ${lat?lat+'ms • ':''}${now()}</div></div></div>`); dot('ollama', data.ollama||false); document.getElementById('mem-bar').style.width=(data.mem_percent||18)+'%'; setTimeout(()=>{},1200)}
+
+      let thinkEl=null; function showThinking(){if(thinkEl) return; thinkEl=document.createElement('div');thinkEl.className='msg'; thinkEl.innerHTML=`<div style="width:42px;height:42px;border-radius:50%;background:#16303a;display:flex;align-items:center;justify-content:center">N</div><div style="flex:1"><div class="bubble">... thinking</div></div>`; document.getElementById('messages').appendChild(thinkEl); document.getElementById('messages').scrollTop=99999}
+      function removeThinking(){if(thinkEl){thinkEl.remove();thinkEl=null}}
+
+      // Health poll
+      async function health(){try{const r=await fetch(API+'/health',{signal:AbortSignal.timeout(3000)}); const d=await r.json(); dot('ollama', d.ollama); dot('ws', true);}catch(e){dot('ollama',false); dot('ws',false)}}
+
+      // Mic (browser SR)
+      let mic=null; function toggleMic(){const btn=document.getElementById('btn-mic'); if(mic){mic=null; btn.style.opacity=1; return;} const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){alert('Voice not supported');return} mic=new SR(); mic.continuous=false; mic.lang='en-US'; mic.onstart=()=>{btn.style.opacity=.6}; mic.onresult=e=>{document.getElementById('text-in').value=e.results[0][0].transcript; mic=null; btn.style.opacity=1; setTimeout(()=>sendMsg(),150)}; mic.onerror=()=>{mic=null;btn.style.opacity=1}; mic.start()}
+
+      function autoH(el){el.style.height='56px'; el.style.height=Math.min(el.scrollHeight,160)+'px'}
+
+      // Init
+      connectWS(); health(); setInterval(health,30000);
     </script>
-  </div>
-
-  <!-- Stats -->
-  <div class="stat-row">
-    <div class="stat-label"><span>RESPONSE</span><span id="lat-val">—</span></div>
-    <div class="bar-track"><div class="bar-fill" id="lat-bar" style="width:0%;background:var(--teal)"></div></div>
-  </div>
-  <div class="stat-row">
-    <div class="stat-label"><span>MEMORY</span><span id="mem-val">0</span></div>
-    <div class="bar-track"><div class="bar-fill" id="mem-bar" style="width:20%;background:var(--purple)"></div></div>
-  </div>
-  <div class="stat-row">
-    <div class="stat-label"><span>SESSION</span><span id="turn-val">0 turns</span></div>
-    <div class="bar-track"><div class="bar-fill" id="turn-bar" style="width:0%;background:var(--pink)"></div></div>
-  </div>
-
-</div>
-
-<!-- CHAT AREA -->
-<div id="chat-area">
-  <div id="messages">
-    <div class="msg nano">
-      <div class="msg-icon">N</div>
-      <div>
-        <div class="bubble">
-          Konnichiwa! I am Nano, your AI desktop assistant. I can write code,
-          run commands, manage your files, update your CV, search the web,
-          and much more. How can I help you today?
-        </div>
-        <div class="msg-meta">
-          <span>NANO</span>
-          <span class="emotion-chip happy">HAPPY</span>
-          <span>boot</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Input -->
-  <div id="input-bar">
-    <button class="btn" id="btn-mic" onclick="toggleMic()" title="Voice input">🎙</button>
-    <textarea id="text-in" placeholder="Type a command, ask a question, or say 'write me a Python app'…"
-      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
-      oninput="autoH(this)"></textarea>
-    <button class="btn" onclick="sendMsg('what is on my screen')" title="Screen capture">🖥</button>
-    <button class="btn send" onclick="sendMsg()" title="Send">↑</button>
-  </div>
-</div>
-
-<!-- RIGHT PANEL -->
-<div id="right-panel">
-  <div class="rp-section">
-    <div class="rp-title">Intent</div>
-    <div class="intent-grid" id="intent-grid">
-      <div class="intent-tag active">chat</div>
-      <div class="intent-tag">code</div>
-      <div class="intent-tag">cmd</div>
-      <div class="intent-tag">file</div>
-      <div class="intent-tag">app</div>
-      <div class="intent-tag">cv</div>
-      <div class="intent-tag">job</div>
-      <div class="intent-tag">email</div>
-      <div class="intent-tag">search</div>
-      <div class="intent-tag">screen</div>
-      <div class="intent-tag">memory</div>
-    </div>
-  </div>
-
-  <div class="rp-section fill">
-    <div class="rp-title">Quick commands</div>
-    <div class="cmd-item" onclick="sendMsg('write a Flask web app with login')">
-      <span class="cmd-key">›</span>Write Flask app
-    </div>
-    <div class="cmd-item" onclick="sendMsg('create a todo list in HTML')">
-      <span class="cmd-key">›</span>Create HTML todo app
-    </div>
-    <div class="cmd-item" onclick="sendMsg('run ipconfig')">
-      <span class="cmd-key">›</span>Run ipconfig
-    </div>
-    <div class="cmd-item" onclick="sendMsg('check disk space')">
-      <span class="cmd-key">›</span>Check disk space
-    </div>
-    <div class="cmd-item" onclick="sendMsg('open VS Code')">
-      <span class="cmd-key">›</span>Open VS Code
-    </div>
-    <div class="cmd-item" onclick="sendMsg('update my CV with Python and AI skills')">
-      <span class="cmd-key">›</span>Update CV
-    </div>
-    <div class="cmd-item" onclick="sendMsg('find Python developer jobs in Pune')">
-      <span class="cmd-key">›</span>Find jobs in Pune
-    </div>
-    <div class="cmd-item" onclick="sendMsg('read my emails')">
-      <span class="cmd-key">›</span>Read emails
-    </div>
-    <div class="cmd-item" onclick="sendMsg('search for latest AI news')">
-      <span class="cmd-key">›</span>Latest AI news
-    </div>
-    <div class="cmd-item" onclick="sendMsg('what is on my screen')">
-      <span class="cmd-key">›</span>Read my screen
-    </div>
-    <div class="cmd-item" onclick="sendMsg('what do you remember about me')">
-      <span class="cmd-key">›</span>Show my memory
-    </div>
-    <div class="cmd-item" onclick="sendMsg('create a folder called MCA Project on desktop')">
-      <span class="cmd-key">›</span>Create project folder
-    </div>
-  </div>
-</div>
-
-</main>
-
-<script>
-const API = 'http://localhost:8000';
-let turns = 0, ws = null;
-
-// ── Clock ─────────────────────────────────────────────────────────────────
-setInterval(() => {
-  document.getElementById('clk').textContent = new Date().toTimeString().slice(0,8);
-}, 1000);
-
-// ── Voice bars ────────────────────────────────────────────────────────────
-const vb = document.getElementById('voice-bars');
-const barCount = 18;
-for (let i = 0; i < barCount; i++) {
-  const b = document.createElement('div');
-  b.style.cssText = `width:5px;background:var(--teal);border-radius:2px;height:4px;opacity:.3;transition:height .1s`;
-  b.id = 'vbar' + i;
-  vb.appendChild(b);
-}
-let voiceActive = false;
-function animateBars(active) {
-  for (let i = 0; i < barCount; i++) {
-    const el = document.getElementById('vbar' + i);
-    if (active) {
-      const h = 4 + Math.random() * 18;
-      el.style.height = h + 'px';
-      el.style.opacity = '1';
-    } else {
-      el.style.height = '4px';
-      el.style.opacity = '.3';
-    }
-  }
-}
-setInterval(() => { if (voiceActive) animateBars(true); }, 100);
-
-// ── Avatar state ──────────────────────────────────────────────────────────
-const EMOTION_COLORS = {
-  idle:'#00e5c8', listening:'#1a8fff', thinking:'#ffb930',
-  speaking:'#00e5c8', happy:'#00e87a', error:'#ff4050',
-};
-function setAvatarState(state) {
-  const col = EMOTION_COLORS[state] || '#00e5c8';
-  document.getElementById('av-ring').style.borderColor = col;
-  document.getElementById('av-ring').style.boxShadow   = `0 0 18px ${col}55`;
-  document.getElementById('av-emotion').textContent = state.toUpperCase();
-  document.getElementById('av-emotion').style.color  = col;
-
-  // Eye color
-  document.querySelectorAll('#eye-l ellipse:nth-child(2), #eye-r ellipse:nth-child(2)')
-    .forEach(el => el.setAttribute('fill', col));
-
-  // Blush on happy/thinking
-  const blushOp = (state === 'happy' || state === 'thinking') ? '0.4' : '0';
-  document.getElementById('blush-l').setAttribute('opacity', blushOp);
-  document.getElementById('blush-r').setAttribute('opacity', blushOp);
-
-  // Mouth animation on speaking
-  const speaking = state === 'speaking';
-  voiceActive = speaking;
-  animateBars(speaking);
-  if (speaking) {
-    animateMouth(true);
-  } else {
-    animateMouth(false);
-  }
-}
-
-let mouthInterval = null;
-function animateMouth(on) {
-  if (mouthInterval) clearInterval(mouthInterval);
-  const smile  = document.getElementById('mouth-smile');
-  const open   = document.getElementById('mouth-open');
-  const teeth  = document.getElementById('mouth-teeth');
-  if (!on) {
-    smile.style.display = '';
-    open.style.display  = 'none';
-    teeth.style.display = 'none';
-    return;
-  }
-  const seq = [0,2,5,8,10,8,5,2,0,0];
-  let i = 0;
-  mouthInterval = setInterval(() => {
-    const mo = seq[i % seq.length];
-    smile.style.display = 'none';
-    open.style.display  = '';
-    open.setAttribute('ry', mo);
-    teeth.style.display = mo >= 4 ? '' : 'none';
-    i++;
-  }, 80);
-}
-
-// ── WebSocket ─────────────────────────────────────────────────────────────
-function connectWS() {
-  try {
-    ws = new WebSocket('ws://localhost:8000/ws');
-    ws.onopen    = () => { dot('ws','on'); log('WebSocket connected'); };
-    ws.onclose   = () => { dot('ws','off'); setTimeout(connectWS, 3000); };
-    ws.onmessage = e  => handleWS(JSON.parse(e.data));
-  } catch(err) { dot('ws','off'); }
-}
-function handleWS(data) {
-  if (data.type === 'thinking') { showThinking(); return; }
-  if (data.type === 'response') {
-    removeThinking();
-    addNanoMsg(data);
-  }
-}
-
-// ── Send message ──────────────────────────────────────────────────────────
-async function sendMsg(text) {
-  const inp = document.getElementById('text-in');
-  const t   = text || inp.value.trim();
-  if (!t) return;
-  inp.value = '';
-  inp.style.height = '42px';
-
-  addUserMsg(t);
-  setAvatarState('thinking');
-
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({text: t, session_id: 'ui'}));
-    showThinking();
-  } else {
-    showThinking();
-    try {
-      const t0   = Date.now();
-      const resp = await fetch(`${API}/chat`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({text: t, session_id: 'ui'}),
-      });
-      const data = await resp.json();
-      data.latency_ms = Date.now() - t0;
-      removeThinking();
-      addNanoMsg(data);
-    } catch(e) {
-      removeThinking();
-      addNanoMsg({
-        response: 'Backend not reachable. Start Nano first: python main.py --text',
-        emotion: 'error', action_plan: [],
-      });
-    }
-  }
-}
-
-// ── Message rendering ────────────────────────────────────────────────────
-function addUserMsg(text) {
-  turns++;
-  document.getElementById('turn-val').textContent = turns + ' turns';
-  document.getElementById('turn-bar').style.width = Math.min(turns * 5, 100) + '%';
-  append(`<div class="msg user">
-    <div class="msg-icon">U</div>
-    <div>
-      <div class="bubble">${esc(text)}</div>
-      <div class="msg-meta"><span>YOU</span><span>${now()}</span></div>
-    </div>
-  </div>`);
-}
-
-function addNanoMsg(data) {
-  const resp   = data.response || data.final_response || '';
-  const emo    = data.emotion || 'idle';
-  const action = data.action  || data.action_result || '';
-  const lat    = data.latency_ms;
-
-  setAvatarState('speaking');
-  updateIntent(data.intent);
-  if (lat) updateLatency(lat);
-
-  let actionHtml = '';
-  if (action && action.length > 2) {
-    actionHtml = `<div class="action-box">⚡ ${esc(action.slice(0,200))}</div>`;
-  }
-
-  append(`<div class="msg nano">
-    <div class="msg-icon">N</div>
-    <div>
-      <div class="bubble">${esc(resp)}${actionHtml}</div>
-      <div class="msg-meta">
-        <span>NANO</span>
-        <span class="emotion-chip ${emo}">${emo.toUpperCase()}</span>
-        ${lat ? `<span>${lat}ms</span>` : ''}
-        <span>${now()}</span>
-      </div>
-    </div>
-  </div>`);
-
-  setTimeout(() => setAvatarState('idle'), 2000);
-}
-
-let thinkEl = null;
-function showThinking() {
-  if (thinkEl) return;
-  thinkEl = document.createElement('div');
-  thinkEl.className = 'msg nano';
-  thinkEl.innerHTML = `<div class="msg-icon">N</div>
-    <div><div class="bubble"><div class="thinking-dots">
-      <span></span><span></span><span></span>
-    </div></div></div>`;
-  document.getElementById('messages').appendChild(thinkEl);
-  document.getElementById('messages').scrollTop = 9999;
-}
-function removeThinking() {
-  if (thinkEl) { thinkEl.remove(); thinkEl = null; }
-}
-
-// ── Intent highlight ────────────────────────────────────────────────────
-function updateIntent(intent) {
-  if (!intent) return;
-  document.querySelectorAll('.intent-tag').forEach(t => {
-    t.classList.toggle('active', t.textContent === intent);
-  });
-}
-
-// ── Latency bar ─────────────────────────────────────────────────────────
-function updateLatency(ms) {
-  document.getElementById('lat-val').textContent = ms + 'ms';
-  document.getElementById('lat-bar').style.width = Math.min(ms / 20, 100) + '%';
-}
-
-// ── Voice input ─────────────────────────────────────────────────────────
-let mic = null;
-function toggleMic() {
-  const btn = document.getElementById('btn-mic');
-  if (mic) {
-    mic.stop(); mic = null;
-    btn.classList.remove('active');
-    setAvatarState('idle');
-    return;
-  }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert('Browser does not support voice input.'); return; }
-  mic = new SR();
-  mic.continuous = false;
-  mic.lang = 'en-US';
-  mic.onstart   = () => { btn.classList.add('active'); setAvatarState('listening'); };
-  mic.onresult  = e => {
-    const t = e.results[0][0].transcript;
-    document.getElementById('text-in').value = t;
-    mic = null; btn.classList.remove('active');
-    setTimeout(sendMsg, 100);
-  };
-  mic.onerror = () => { mic = null; btn.classList.remove('active'); setAvatarState('idle'); };
-  mic.start();
-}
-
-// ── Health check ────────────────────────────────────────────────────────
-async function health() {
-  try {
-    const r = await fetch(`${API}/health`, {signal: AbortSignal.timeout(3000)});
-    const d = await r.json();
-    dot('ollama', d.ollama ? 'on' : 'off');
-    dot('avatar', d.avatar ? 'on' : 'warn');
-  } catch(e) { dot('ollama','off'); }
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────
-function dot(id, state) {
-  const el = document.getElementById('d-' + id);
-  if (!el) return;
-  el.className = 'dot' + (state === 'on' ? ' on' : state === 'warn' ? ' warn' : '');
-}
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function now() { return new Date().toTimeString().slice(0,8); }
-function append(html) {
-  const m = document.getElementById('messages');
-  m.insertAdjacentHTML('beforeend', html);
-  m.scrollTop = 9999;
-}
-function log(msg) { console.log('[Nano]', msg); }
-function autoH(el) {
-  el.style.height = '42px';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-}
-
-// ── Init ────────────────────────────────────────────────────────────────
-connectWS();
-health();
-setInterval(health, 30000);
-setAvatarState('idle');
-</script>
-</body>
+  </body>
 </html>
+      <div class="intent-tag active">chat</div>
