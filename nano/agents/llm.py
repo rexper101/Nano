@@ -1,32 +1,32 @@
 """
 LLM Client — Ollama wrapper
 ============================
-Same pattern as reference project's LLM calls.
-Uses httpx to call local Ollama API.
+Calls local Ollama API. Always enforces English responses.
 """
 
 import httpx
-from pydantic import BaseModel
 
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL      = "qwen2.5:7b"   # change to phi3:mini for faster responses
 
-
-class Message(BaseModel):
-    role: str
-    content: str
+# Injected into every request to force English output
+ENGLISH_REINFORCEMENT = (
+    "IMPORTANT: You must always reply in English only. "
+    "Never use Hindi, Japanese, or any other language. English only."
+)
 
 
 class LLMClient:
     def __init__(self, system_prompt: str):
-        self.system_prompt = system_prompt
+        # Inject English enforcement into system prompt
+        self.system_prompt = system_prompt + "\n\n" + ENGLISH_REINFORCEMENT
 
-    def chat(self, user_text: str, history: list[Message]) -> str:
+    def chat(self, user_text: str, history: list) -> str:
         messages = [{"role": "system", "content": self.system_prompt}]
 
+        # history items are plain dicts {"role": ..., "content": ...}
         for msg in history[-10:]:
-            # history items are plain dicts {"role":..., "content":...}
             if isinstance(msg, dict):
                 messages.append({"role": msg["role"], "content": msg["content"]})
             else:
@@ -38,10 +38,13 @@ class LLMClient:
             resp = httpx.post(
                 OLLAMA_URL,
                 json={
-                    "model": MODEL,
+                    "model":   MODEL,
                     "messages": messages,
-                    "stream": False,
-                    "options": {"temperature": 0.7, "num_predict": 256},
+                    "stream":  False,
+                    "options": {
+                        "temperature": 0.7,
+                        "num_predict": 256,
+                    },
                 },
                 timeout=60.0,
             )
@@ -51,4 +54,4 @@ class LLMClient:
         except httpx.ConnectError:
             return "Ollama is not running. Please start it with: ollama serve"
         except Exception as e:
-            return f"LLM error: {e}"
+            return f"Error: {e}"
