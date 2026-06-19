@@ -1,14 +1,14 @@
 """
-Nano TTS — Attractive Anime Character Voice
-==============================================
-Uses Microsoft Edge TTS (free, no API key) with a warm, expressive
-English female voice — sounds natural and anime-character-like.
+Japanese-Accent English TTS
+=============================
+Uses Microsoft Edge TTS (free, no API key) with the Japanese
+female voice speaking English — gives that natural Japanese accent.
 
-Voice: en-US-AnaNeural — young, warm, expressive English female.
-       Cheerful style with slightly higher pitch for that anime energy.
+Voice: ja-JP-NanamiNeural — Japanese female, speaks English with
+       a natural Japanese accent and feminine tone.
 
 Fallback chain:
-  1. edge-tts  (en-US-AnaNeural, online)
+  1. edge-tts  (Japanese accent, online)
   2. Piper TTS (offline, English)
   3. pyttsx3   (offline, basic)
 
@@ -25,21 +25,20 @@ import os
 from pathlib import Path
 
 
-# English female voices — warm, attractive, human-sounding
-VOICE_OPTIONS = [
-    "en-US-AnaNeural",        # Best: young, warm, expressive — anime-like
-    "en-US-JennyNeural",      # Alternative: warm, natural female
-    "en-US-AriaNeural",       # Alternative: clear, cheerful female
-    "en-GB-SoniaNeural",      # Fallback: elegant British female
+# Japanese female voices that speak English with natural accent
+JAPANESE_VOICES = [
+    "ja-JP-NanamiNeural",     # Best: warm, natural Japanese girl voice
+    "ja-JP-AoiNeural",        # Alternative: slightly younger sounding
+    "zh-CN-XiaoxiaoNeural",   # Fallback: Chinese girl voice (similar accent)
 ]
 
-# SSML template for expressive, cheerful speech
+# Speaking style modifiers for more natural anime-girl speech
 SSML_TEMPLATE = """<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'
        xmlns:mstts='http://www.w3.org/2001/mstts'
        xml:lang='en-US'>
   <voice name='{voice}'>
-    <mstts:express-as style='cheerful' styledegree='1.3'>
-      <prosody rate='+3%' pitch='+6%'>
+    <mstts:express-as style='cheerful' styledegree='1.2'>
+      <prosody rate='+5%' pitch='+8%'>
         {text}
       </prosody>
     </mstts:express-as>
@@ -47,14 +46,14 @@ SSML_TEMPLATE = """<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthes
 </speak>"""
 
 
-class NanoTTSSpeaker:
+class JapaneseTTSSpeaker:
     """
-    TTS with an attractive, human-sounding anime character voice.
+    TTS with Japanese-accent English voice.
     synthesise(text) → (float32_audio_array, sample_rate)
     """
 
     def __init__(self):
-        self._voice        = VOICE_OPTIONS[0]
+        self._voice        = JAPANESE_VOICES[0]
         self._edge_ok      = self._check_edge_tts()
         self._piper_ok     = False
         self._piper_voice  = None
@@ -104,7 +103,7 @@ class NanoTTSSpeaker:
 
         return self._synth_pyttsx3(clean)
 
-    # ── Edge TTS (English voice) ──────────────────────────────────────────────
+    # ── Edge TTS (Japanese voice) ─────────────────────────────────────────────
 
     def _synth_edge(self, text: str) -> tuple[np.ndarray | None, int]:
         try:
@@ -114,8 +113,8 @@ class NanoTTSSpeaker:
                 communicate = edge_tts.Communicate(
                     text,
                     voice=self._voice,
-                    rate="+3%",
-                    pitch="+6%",
+                    rate="+5%",
+                    # pitch not set — causes issues on some systems
                 )
                 audio_data = b""
                 async for chunk in communicate.stream():
@@ -214,6 +213,7 @@ class NanoTTSSpeaker:
                     engine.setProperty("voice", v.id)
                     break
             engine.setProperty("rate", 160)
+            # NOTE: pitch is not supported on Windows SAPI5 — skip it
             engine.say(text)
             engine.runAndWait()
         except Exception as e:

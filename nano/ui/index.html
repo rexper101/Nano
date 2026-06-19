@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Nano AI</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#0a0000;color:#ff4444;font-family:'Segoe UI',system-ui,sans-serif;user-select:none}
+
+/* ── Canvas bg ── */
+#canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ── Layout ── */
+#app{position:relative;z-index:1;width:100vw;height:100vh;display:grid;grid-template-columns:72px 1fr 220px;grid-template-rows:1fr 90px}
+
+/* ── Sidebar icons ── */
+#sidebar{grid-row:1/3;background:rgba(10,0,0,0.7);border-right:1px solid #3a0000;display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:8px}
+.sico{width:44px;height:44px;border-radius:8px;border:1px solid #2a0000;background:rgba(20,0,0,0.6);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:18px;color:#660000;position:relative}
+.sico:hover,.sico.active{border-color:#cc0000;color:#ff4444;background:rgba(80,0,0,0.4);box-shadow:0 0 12px #cc000044}
+.sico.active::before{content:'';position:absolute;left:-1px;top:50%;transform:translateY(-50%);width:2px;height:24px;background:#ff4444;border-radius:1px}
+#refresh-btn{margin-top:auto;color:#440000}
+
+/* ── Main center ── */
+#center{grid-column:2;grid-row:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+
+/* Clock */
+#clock-box{position:absolute;top:16px;left:20px;background:rgba(15,0,0,0.75);border:1px solid #2a0000;border-radius:10px;padding:12px 16px}
+#time{font-size:28px;font-weight:700;color:#ff3333;letter-spacing:2px;font-variant-numeric:tabular-nums}
+#date{font-size:12px;color:#880000;margin-top:2px;letter-spacing:1px}
+
+/* Radar */
+#radar-wrap{position:relative;width:320px;height:320px;display:flex;align-items:center;justify-content:center}
+#radar-canvas{position:absolute;inset:0}
+#avatar-face{position:relative;z-index:2;width:80px;height:80px;display:flex;align-items:center;justify-content:center}
+#avatar-face svg{width:80px;height:80px;filter:drop-shadow(0 0 12px #ff000088)}
+
+/* Chat overlay */
+#chat-overlay{position:absolute;bottom:16px;left:20px;right:10px;max-height:220px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+#chat-overlay::-webkit-scrollbar{width:2px}
+#chat-overlay::-webkit-scrollbar-thumb{background:#3a0000}
+.cmsg{padding:8px 12px;border-radius:8px;font-size:13px;line-height:1.5;max-width:90%;animation:msgfade .25s ease-out}
+@keyframes msgfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.cmsg.nano{background:rgba(40,0,0,0.8);border:1px solid #3a0000;color:#ff6666;align-self:flex-start}
+.cmsg.user{background:rgba(80,0,0,0.6);border:1px solid #550000;color:#ffaaaa;align-self:flex-end}
+.cmsg .act{margin-top:6px;font-size:11px;color:#990000;border-top:1px solid #3a0000;padding-top:5px;font-family:monospace}
+
+/* Thinking dots */
+.think-dots{display:flex;gap:4px;padding:8px 12px;background:rgba(40,0,0,0.8);border:1px solid #3a0000;border-radius:8px;width:fit-content}
+.td{width:6px;height:6px;border-radius:50%;background:#cc0000;opacity:.3;animation:tdp 1.4s ease-in-out infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
+@keyframes tdp{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+/* ── Right panel ── */
+#right-panel{grid-row:1;background:rgba(10,0,0,0.75);border-left:1px solid #2a0000;padding:16px 14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+
+/* Stat box */
+.stat-box{background:rgba(20,0,0,0.6);border:1px solid #2a0000;border-radius:10px;padding:12px}
+.stat-box-title{font-size:11px;letter-spacing:2px;color:#660000;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.stat-led{width:7px;height:7px;border-radius:50%;background:#cc0000;box-shadow:0 0 6px #cc0000}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-item .k{font-size:10px;color:#660000;margin-bottom:2px}
+.stat-item .v{font-size:18px;font-weight:700;color:#ff3333}
+.stat-divider{border:none;border-top:1px solid #1a0000;margin:4px 0}
+.stat-row{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.stat-row .k2{color:#660000}
+.stat-row .v2{color:#ff4444;font-family:monospace}
+
+/* Input area in right panel */
+#input-section{margin-top:auto}
+#input-section label{font-size:9px;letter-spacing:2px;color:#660000;display:block;margin-bottom:6px}
+#txt-row{display:flex;gap:6px}
+#txt{flex:1;background:rgba(20,0,0,0.8);border:1px solid #3a0000;border-radius:8px;color:#ff6666;font-size:13px;padding:9px 12px;outline:none;resize:none;height:40px;font-family:inherit;transition:border-color .2s}
+#txt:focus{border-color:#880000;box-shadow:0 0 0 2px #88000033}
+#txt::placeholder{color:#440000}
+#send-btn{width:40px;height:40px;border-radius:8px;border:1px solid #550000;background:rgba(60,0,0,0.6);color:#cc0000;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+#send-btn:hover{background:rgba(120,0,0,0.6);color:#ff4444;border-color:#880000}
+#mic-btn{width:40px;height:40px;border-radius:8px;border:1px solid #2a0000;background:rgba(20,0,0,0.6);color:#660000;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+#mic-btn:hover,#mic-btn.active{border-color:#880000;color:#ff4444;background:rgba(80,0,0,0.5)}
+
+/* Intent tag */
+#intent-tag{font-size:10px;font-family:monospace;color:#660000;padding:3px 8px;border:1px solid #2a0000;border-radius:4px;align-self:flex-end;letter-spacing:1px;margin-top:4px}
+
+/* ── Bottom metrics ── */
+#metrics{grid-column:2/4;background:rgba(10,0,0,0.85);border-top:1px solid #2a0000;display:flex;align-items:center;padding:0 24px;gap:0}
+.metric{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;border-right:1px solid #1a0000;gap:3px}
+.metric:last-child{border:none}
+.metric .mic-icon{font-size:20px;color:#880000;margin-bottom:2px}
+.metric .mic-icon.speak{color:#ff4444;animation:iconpulse 1s ease-in-out infinite}
+@keyframes iconpulse{0%,100%{opacity:1}50%{opacity:.4}}
+.metric .mk{font-size:10px;color:#660000;letter-spacing:1px}
+.metric .mv{font-size:14px;font-weight:700;color:#ff3333}
+
+/* Speak button */
+#speak-btn{width:52px;height:52px;border-radius:50%;border:2px solid #660000;background:rgba(40,0,0,0.6);color:#880000;font-size:22px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .2s;margin-left:auto;flex-shrink:0;gap:2px}
+#speak-btn:hover,#speak-btn.active{border-color:#cc0000;color:#ff4444;background:rgba(100,0,0,0.5);box-shadow:0 0 16px #cc000055}
+#speak-btn span{font-size:8px;letter-spacing:1px}
+
+/* Pill status */
+#api-status{position:absolute;top:16px;right:20px;font-size:10px;font-family:monospace;letter-spacing:1px;padding:4px 10px;border-radius:20px;border:1px solid #2a0000;color:#660000;background:rgba(10,0,0,0.8)}
+#api-status.on{border-color:#440000;color:#aa3333}
+#api-status.off{color:#440000}
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sico active" onclick="setView('chat')"    title="Chat">💬</div>
+    <div class="sico"        onclick="setView('code')"    title="Write Code">⚡</div>
+    <div class="sico"        onclick="setView('files')"   title="Files">📁</div>
+    <div class="sico"        onclick="setView('screen')"  title="Screen">🖥</div>
+    <div class="sico"        onclick="setView('settings')"title="Settings">⚙</div>
+    <div class="sico"        onclick="setView('zap')"     title="Quick Run">🔌</div>
+    <div class="sico" id="refresh-btn" onclick="location.reload()" title="Refresh">↺</div>
+  </div>
+
+  <!-- CENTER -->
+  <div id="center">
+    <!-- Clock -->
+    <div id="clock-box">
+      <div id="time">--:--:-- --</div>
+      <div id="date">Loading...</div>
+    </div>
+
+    <div id="api-status" class="off">● CONNECTING</div>
+
+    <!-- Radar + avatar -->
+    <div id="radar-wrap">
+      <canvas id="radar-canvas" width="320" height="320"></canvas>
+      <div id="avatar-face">
+        <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+          <!-- Back hair -->
+          <path d="M12 36 Q8 56 12 72 Q28 80 40 81 Q52 80 68 72 Q72 56 68 36" fill="#4a0080" opacity=".9"/>
+          <!-- Body -->
+          <path d="M22 66 Q16 72 15 80 L65 80 Q64 72 58 66 Q50 70 40 70 Q30 70 22 66Z" fill="#1a0a3a"/>
+          <!-- Neck -->
+          <rect x="33" y="60" width="14" height="10" rx="3" fill="#e8b870"/>
+          <!-- Face -->
+          <ellipse cx="40" cy="46" rx="26" ry="26" fill="#f5d0a0" stroke="#d4a060" stroke-width=".5"/>
+          <!-- Cat ears -->
+          <polygon points="16,30 8,14 24,22" fill="#4a0080" stroke="#7700cc" stroke-width=".5"/>
+          <polygon points="17,28 11,16 23,22" fill="#f9a8d4" opacity=".8"/>
+          <polygon points="64,30 72,14 56,22" fill="#4a0080" stroke="#7700cc" stroke-width=".5"/>
+          <polygon points="63,28 69,16 57,22" fill="#f9a8d4" opacity=".8"/>
+          <!-- Hair front -->
+          <ellipse cx="40" cy="30" rx="28" ry="16" fill="#5500aa" stroke="#7700cc" stroke-width=".4"/>
+          <!-- Bangs -->
+          <path d="M20,20 Q17,34 22,38 Q26,34 23,20Z" fill="#4a0080"/>
+          <path d="M27,18 Q23,34 28,40 Q34,36 31,18Z" fill="#5500aa"/>
+          <path d="M36,17 Q32,36 37,42 Q42,38 40,17Z" fill="#4a0080"/>
+          <path d="M44,17 Q48,36 43,42 Q38,38 40,17Z" fill="#5500aa"/>
+          <path d="M53,18 Q57,34 52,40 Q46,36 49,18Z" fill="#4a0080"/>
+          <!-- Eyes -->
+          <ellipse cx="31" cy="42" rx="7" ry="6" fill="#f0f8ff" stroke="#c8b098" stroke-width=".4"/>
+          <ellipse cx="31" cy="42" rx="5" ry="5" fill="#ff2222" id="el"/>
+          <ellipse cx="31" cy="42" rx="2.5" ry="2.5" fill="#0a0014"/>
+          <ellipse cx="33" cy="40" rx="1.5" ry="1.2" fill="white"/>
+          <ellipse cx="49" cy="42" rx="7" ry="6" fill="#f0f8ff" stroke="#c8b098" stroke-width=".4"/>
+          <ellipse cx="49" cy="42" rx="5" ry="5" fill="#ff2222" id="er"/>
+          <ellipse cx="49" cy="42" rx="2.5" ry="2.5" fill="#0a0014"/>
+          <ellipse cx="51" cy="40" rx="1.5" ry="1.2" fill="white"/>
+          <!-- Blink -->
+          <rect id="bl" x="24" y="39" width="14" height="7" rx="2" fill="#f5d0a0" style="display:none"/>
+          <rect id="br" x="42" y="39" width="14" height="7" rx="2" fill="#f5d0a0" style="display:none"/>
+          <!-- Nose -->
+          <ellipse cx="40" cy="50" rx="1.5" ry="1" fill="#c48040"/>
+          <!-- Mouth -->
+          <path id="ms" d="M34 55 Q40 60 46 55" stroke="#c06080" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <ellipse id="mo" cx="40" cy="56" rx="5" ry="0" fill="#b03050" stroke="#8a2030" stroke-width=".6" style="display:none"/>
+          <!-- Blush -->
+          <ellipse id="bsl" cx="22" cy="50" rx="6" ry="4" fill="#ff6699" opacity="0"/>
+          <ellipse id="bsr" cx="58" cy="50" rx="6" ry="4" fill="#ff6699" opacity="0"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Chat messages -->
+    <div id="chat-overlay">
+      <div class="cmsg nano">Konnichiwa! I am Nano~ How can I help you today?</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+    <div class="stat-box">
+      <div class="stat-box-title"><div class="stat-led"></div>SYSTEM STATUS</div>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="k">CPU TEMP</div><div class="v" id="s-cpu">--°C</div></div>
+        <div class="stat-item"><div class="k">GPU USAGE</div><div class="v" id="s-gpu">--%</div></div>
+        <div class="stat-item"><div class="k">RAM USAGE</div><div class="v" id="s-ram">--GB</div></div>
+        <div class="stat-item"><div class="k">UPTIME</div><div class="v" id="s-up">--h</div></div>
+      </div>
+      <hr class="stat-divider"/>
+      <div class="stat-row"><span class="k2">🌐 NETWORK</span><span class="v2" id="s-net">--ms</span></div>
+      <div class="stat-row"><span class="k2">📦 SENT</span><span class="v2" id="s-sent">--</span></div>
+      <div class="stat-row"><span class="k2">📥 RECV</span><span class="v2" id="s-recv">--</span></div>
+    </div>
+
+    <div class="stat-box">
+      <div class="stat-box-title"><div class="stat-led"></div>NANO AI</div>
+      <div class="stat-row"><span class="k2">LATENCY</span><span class="v2" id="s-lat">—</span></div>
+      <div class="stat-row"><span class="k2">TURNS</span>   <span class="v2" id="s-turns">0</span></div>
+      <div class="stat-row"><span class="k2">INTENT</span> <span class="v2" id="s-intent" style="color:#ff4444">—</span></div>
+      <div class="stat-row"><span class="k2">EMOTION</span><span class="v2" id="s-emo">IDLE</span></div>
+      <div class="stat-row"><span class="k2">MODEL</span>  <span class="v2">QWEN2.5</span></div>
+    </div>
+
+    <div id="input-section">
+      <label>SEND COMMAND</label>
+      <div id="txt-row">
+        <button id="mic-btn" onclick="toggleMic()" title="Voice">🎙</button>
+        <textarea id="txt" placeholder="Type command…" rows="1"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"
+          oninput="autoH(this)"></textarea>
+        <button id="send-btn" onclick="send()" title="Send">↑</button>
+      </div>
+      <div id="intent-tag">INTENT: IDLE</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM METRICS -->
+  <div id="metrics">
+    <div class="metric">
+      <div class="mic-icon">💻</div>
+      <div class="mk">CPU USAGE</div>
+      <div class="mv" id="m-cpu">--%</div>
+    </div>
+    <div class="metric">
+      <div class="mic-icon">🧠</div>
+      <div class="mk">MEMORY</div>
+      <div class="mv" id="m-mem">--GB</div>
+    </div>
+    <div class="metric">
+      <div class="mic-icon">⚡</div>
+      <div class="mk">POWER</div>
+      <div class="mv" id="m-pwr">--%</div>
+    </div>
+    <div class="metric">
+      <div class="mic-icon">🌐</div>
+      <div class="mk">NETWORK</div>
+      <div class="mv" id="m-net">ONLINE</div>
+    </div>
+    <div class="metric">
+      <div class="mic-icon">🔒</div>
+      <div class="mk">SECURITY</div>
+      <div class="mv" id="m-sec">ACTIVE</div>
+    </div>
+    <div class="metric">
+      <div class="mic-icon">⚙</div>
+      <div class="mk">PROCESSES</div>
+      <div class="mv" id="m-proc">--</div>
+    </div>
+    <button id="speak-btn" onclick="toggleVoice()" title="Tap to speak">
+      🎙<span>SPEAK</span>
+    </button>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  NANO — Red/Black Sci-Fi UI
+//  Backend: http://localhost:8000 (same origin)
+// ═══════════════════════════════════════════════
+
+const API = '';
+const WS  = `ws://${location.host}/ws`;
+
+let ws        = null;
+let turns     = 0;
+let thinkEl   = null;
+let mouthTmr  = null;
+let micRec    = null;
+let speaking  = false;
+let uptime    = 0;
+
+const MOUTH = [0,1,3,6,9,10,9,6,3,1,0,0,0,2,5,7,5,2,0];
+let mIdx = 0;
+
+// ── Clock ────────────────────────────────────────
+function updateClock(){
+  const n = new Date();
+  let h = n.getHours(), m = n.getMinutes(), s = n.getSeconds();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  const pad = x => String(x).padStart(2,'0');
+  document.getElementById('time').textContent = `${pad(h)}:${pad(m)}:${pad(s)} ${ampm}`;
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('date').textContent = `${days[n.getDay()]}, ${months[n.getMonth()]} ${n.getDate()}, ${n.getFullYear()}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Fake system stats (replace with real psutil via API if desired) ──
+function randomInt(a,b){return a+Math.floor(Math.random()*(b-a+1));}
+function updateStats(){
+  uptime++;
+  const h = Math.floor(uptime/120), m = Math.floor((uptime%120)/2);
+  document.getElementById('s-cpu').textContent  = randomInt(55,72)+'°C';
+  document.getElementById('s-gpu').textContent  = randomInt(38,62)+'%';
+  document.getElementById('s-ram').textContent  = (10+Math.random()*4).toFixed(1)+'GB';
+  document.getElementById('s-up').textContent   = `${String(h+127).padStart(3,'0')}h ${String(m+34).padStart(2,'0')}m`;
+  document.getElementById('s-net').textContent  = randomInt(8,18)+'ms';
+  document.getElementById('s-sent').textContent = randomInt(800,920)+' PKT';
+  document.getElementById('s-recv').textContent = randomInt(380,460)+' PKT';
+  document.getElementById('m-cpu').textContent  = randomInt(55,80)+'%';
+  document.getElementById('m-mem').textContent  = (10+Math.random()*4).toFixed(1)+'GB';
+  document.getElementById('m-pwr').textContent  = randomInt(80,95)+'%';
+  document.getElementById('m-proc').textContent = randomInt(240,260);
+}
+setInterval(updateStats, 2000);
+updateStats();
+
+// ── Particles ────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+let W, H, particles=[];
+
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize',resize);
+
+for(let i=0;i<80;i++) particles.push({
+  x:Math.random()*3000, y:Math.random()*2000,
+  r:Math.random()*1.8+0.3,
+  vx:(Math.random()-.5)*.3,
+  vy:(Math.random()-.5)*.3,
+  a:Math.random()*.6+.1,
+});
+
+function drawParticles(){
+  ctx.clearRect(0,0,W,H);
+  particles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+    if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+    ctx.beginPath();
+    ctx.arc(p.x%W, p.y%H, p.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(200,0,0,${p.a})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+// ── Radar ────────────────────────────────────────
+const rc  = document.getElementById('radar-canvas');
+const rctx= rc.getContext('2d');
+let radarAngle = 0;
+let radarPulse = [];
+const CX = 160, CY = 160, RR = 148;
+
+function drawRadar(){
+  rctx.clearRect(0,0,320,320);
+
+  // Outer glow
+  const grad = rctx.createRadialGradient(CX,CY,60,CX,CY,RR);
+  grad.addColorStop(0,'rgba(180,0,0,0.18)');
+  grad.addColorStop(0.5,'rgba(100,0,0,0.10)');
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  rctx.beginPath();
+  rctx.arc(CX,CY,RR,0,Math.PI*2);
+  rctx.fillStyle=grad;
+  rctx.fill();
+
+  // Rings
+  [0.25,0.5,0.75,1].forEach(f=>{
+    rctx.beginPath();
+    rctx.arc(CX,CY,RR*f,0,Math.PI*2);
+    rctx.strokeStyle='rgba(140,0,0,0.3)';
+    rctx.lineWidth=0.8;
+    rctx.stroke();
+  });
+
+  // Cross hairs
+  rctx.strokeStyle='rgba(120,0,0,0.25)';
+  rctx.lineWidth=0.6;
+  rctx.beginPath(); rctx.moveTo(CX-RR,CY); rctx.lineTo(CX+RR,CY); rctx.stroke();
+  rctx.beginPath(); rctx.moveTo(CX,CY-RR); rctx.lineTo(CX,CY+RR); rctx.stroke();
+
+  // Sweep
+  radarAngle=(radarAngle+0.018)%(Math.PI*2);
+  const sweepGrad=rctx.createConicalGradient ? null : null;
+  rctx.save();
+  rctx.translate(CX,CY);
+  rctx.rotate(radarAngle);
+  const sweep=rctx.createLinearGradient(0,0,RR,0);
+  sweep.addColorStop(0,'rgba(200,0,0,0.0)');
+  sweep.addColorStop(0.7,'rgba(200,0,0,0.06)');
+  sweep.addColorStop(1,'rgba(255,30,30,0.35)');
+  rctx.beginPath();
+  rctx.moveTo(0,0);
+  rctx.arc(0,0,RR,-0.4,0);
+  rctx.closePath();
+  rctx.fillStyle=sweep;
+  rctx.fill();
+  // Sweep line
+  rctx.beginPath();
+  rctx.moveTo(0,0);
+  rctx.lineTo(RR,0);
+  rctx.strokeStyle='rgba(255,40,40,0.7)';
+  rctx.lineWidth=1.5;
+  rctx.stroke();
+  rctx.restore();
+
+  // Pulse rings when speaking
+  radarPulse=radarPulse.filter(p=>{p.r+=1.8;p.a-=0.02;return p.a>0;});
+  radarPulse.forEach(p=>{
+    rctx.beginPath();
+    rctx.arc(CX,CY,p.r,0,Math.PI*2);
+    rctx.strokeStyle=`rgba(255,40,40,${p.a})`;
+    rctx.lineWidth=1;
+    rctx.stroke();
+  });
+  if(speaking && Math.random()<0.12) radarPulse.push({r:30,a:0.5});
+
+  requestAnimationFrame(drawRadar);
+}
+drawRadar();
+
+// ── WebSocket ─────────────────────────────────────
+function connectWS(){
+  try{
+    ws=new WebSocket(WS);
+    ws.onopen   = ()=>{ setStatus(true);  addSysMsg('Connected to Nano backend.'); };
+    ws.onclose  = ()=>{ setStatus(false); setTimeout(connectWS,3000); };
+    ws.onerror  = ()=>{ setStatus(false); };
+    ws.onmessage= (e)=>{ onMsg(JSON.parse(e.data)); };
+  }catch(e){ setStatus(false); }
+}
+connectWS();
+healthCheck();
+setInterval(healthCheck, 15000);
+
+async function healthCheck(){
+  try{
+    const r=await fetch(`${API}/health`,{signal:AbortSignal.timeout(4000)});
+    const d=await r.json();
+    setStatus(true);
+  }catch(e){ setStatus(false); }
+}
+
+function setStatus(ok){
+  const el=document.getElementById('api-status');
+  el.textContent = ok?'● ONLINE':'● OFFLINE';
+  el.className   = ok?'on':'off';
+}
+
+function onMsg(d){
+  if(d.type==='thinking'){ showThink(); setEmo('thinking'); return; }
+  if(d.type==='response'){
+    removeThink();
+    addNanoMsg(d);
+    setEmo(d.emotion||'idle');
+    updateAIStats(d);
+    setTimeout(()=>setEmo('idle'),3000);
+  }
+  if(d.type==='error'){
+    removeThink();
+    addNanoMsg({response:'⚠ '+(d.message||'Error'),emotion:'error',action:'',intent:'error',latency_ms:0});
+    setEmo('error');
+  }
+}
+
+// ── Send ──────────────────────────────────────────
+async function send(preset){
+  const el = document.getElementById('txt');
+  const text= preset||el.value.trim();
+  if(!text) return;
+  el.value=''; el.style.height='auto';
+  addUserMsg(text);
+  setEmo('thinking');
+  document.getElementById('intent-tag').textContent='INTENT: PROCESSING…';
+
+  if(ws&&ws.readyState===WebSocket.OPEN){
+    ws.send(JSON.stringify({text,session_id:'ui'}));
+    showThink();
+    return;
+  }
+  showThink();
+  try{
+    const t0=Date.now();
+    const r=await fetch(`${API}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,session_id:'ui'})});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d=await r.json();
+    d.latency_ms=d.latency_ms||(Date.now()-t0);
+    removeThink(); addNanoMsg(d); setEmo(d.emotion||'idle'); updateAIStats(d);
+    setTimeout(()=>setEmo('idle'),3000);
+  }catch(e){
+    removeThink();
+    addNanoMsg({response:'Backend offline — run: python api_server.py',emotion:'error',action:'',intent:'error',latency_ms:0});
+    setEmo('error');
+  }
+}
+
+// ── Messages ──────────────────────────────────────
+function addUserMsg(text){
+  turns++;
+  document.getElementById('s-turns').textContent=turns;
+  const el=document.createElement('div');
+  el.className='cmsg user';
+  el.textContent=text;
+  chat().appendChild(el);
+  scrollChat();
+}
+
+function addNanoMsg(d){
+  const resp=d.response||'';
+  const act =d.action||'';
+  const el=document.createElement('div');
+  el.className='cmsg nano';
+  el.innerHTML=esc(resp)+(act&&act.trim().length>2?`<div class="act">⚡ ${esc(act.slice(0,300))}</div>`:'');
+  chat().appendChild(el);
+  scrollChat();
+  speaking=true;
+  setTimeout(()=>{speaking=false;},Math.min(resp.length*60,6000));
+}
+
+function addSysMsg(t){
+  const el=document.createElement('div');
+  el.className='cmsg nano';
+  el.style.fontSize='11px';
+  el.style.color='#660000';
+  el.textContent=t;
+  chat().appendChild(el);
+  scrollChat();
+}
+
+function showThink(){
+  if(thinkEl) return;
+  thinkEl=document.createElement('div');
+  thinkEl.className='think-dots';
+  thinkEl.innerHTML='<div class="td"></div><div class="td"></div><div class="td"></div>';
+  chat().appendChild(thinkEl);
+  scrollChat();
+}
+
+function removeThink(){
+  if(thinkEl){thinkEl.remove();thinkEl=null;}
+}
+
+function chat(){ return document.getElementById('chat-overlay'); }
+function scrollChat(){ const c=chat(); c.scrollTop=c.scrollHeight; }
+
+// ── Avatar emotion ────────────────────────────────
+const EMO_EYE={
+  idle:'#ff2222',listening:'#4499ff',thinking:'#ffaa00',
+  speaking:'#ff2222',happy:'#22ff88',error:'#ff4444',
+};
+
+function setEmo(state){
+  const col=EMO_EYE[state]||'#ff2222';
+  ['el','er'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.setAttribute('fill',col);
+  });
+  ['bsl','bsr'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.setAttribute('opacity',(state==='happy'||state==='thinking')?'0.45':'0');
+  });
+  document.getElementById('s-emo').textContent=state.toUpperCase();
+  document.getElementById('s-emo').style.color=col;
+
+  if(state==='speaking'){ startMouth(); speaking=true; }
+  else { stopMouth(); }
+}
+
+// Blink
+setInterval(()=>{
+  ['bl','br'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.style.display='';setTimeout(()=>{el.style.display='none';},110);}
+  });
+},4000+Math.random()*3000);
+
+function startMouth(){
+  if(mouthTmr) return;
+  mouthTmr=setInterval(()=>{
+    const mo=MOUTH[mIdx%MOUTH.length]; mIdx++;
+    document.getElementById('ms').style.display='none';
+    document.getElementById('mo').style.display='';
+    document.getElementById('mo').setAttribute('ry',mo);
+  },80);
+}
+function stopMouth(){
+  if(mouthTmr){clearInterval(mouthTmr);mouthTmr=null;}
+  const ms=document.getElementById('ms'); if(ms) ms.style.display='';
+  const mo=document.getElementById('mo'); if(mo) mo.style.display='none';
+}
+
+// ── Stats update ──────────────────────────────────
+function updateAIStats(d){
+  if(d.latency_ms) document.getElementById('s-lat').textContent=d.latency_ms+'ms';
+  if(d.intent){
+    document.getElementById('s-intent').textContent=d.intent;
+    document.getElementById('intent-tag').textContent='INTENT: '+d.intent.toUpperCase();
+  }
+}
+
+// ── Sidebar views ──────────────────────────────────
+function setView(v){
+  document.querySelectorAll('.sico').forEach(el=>el.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const presets={
+    code:   'Write a Python Flask web application with login and dashboard',
+    files:  'Create a folder called MCA Project on my desktop',
+    screen: 'What is on my screen right now?',
+    settings:'Show me the current Nano settings',
+    zap:    'Run ipconfig and show me the result',
+  };
+  if(presets[v]) send(presets[v]);
+}
+
+// ── Mic ───────────────────────────────────────────
+function toggleVoice(){
+  const btn=document.getElementById('speak-btn');
+  if(micRec){
+    micRec.stop(); micRec=null;
+    btn.classList.remove('active');
+    document.querySelector('#speak-btn .mic-icon')&&(()=>{})();
+    return;
+  }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){addSysMsg('Voice input needs Chrome browser.');return;}
+  micRec=new SR();
+  micRec.lang='en-US';
+  micRec.onstart =()=>{ btn.classList.add('active'); setEmo('listening'); };
+  micRec.onresult=(e)=>{
+    const t=e.results[0][0].transcript;
+    document.getElementById('txt').value=t;
+    btn.classList.remove('active'); micRec=null;
+    setTimeout(send,100);
+  };
+  micRec.onerror=()=>{ btn.classList.remove('active'); micRec=null; setEmo('idle'); };
+  micRec.start();
+}
+
+function toggleMic(){
+  const btn=document.getElementById('mic-btn');
+  if(micRec){micRec.stop();micRec=null;btn.classList.remove('active');return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){addSysMsg('Voice input needs Chrome.');return;}
+  micRec=new SR();
+  micRec.lang='en-US';
+  micRec.onstart =()=>{ btn.classList.add('active'); setEmo('listening'); };
+  micRec.onresult=(e)=>{
+    document.getElementById('txt').value=e.results[0][0].transcript;
+    btn.classList.remove('active'); micRec=null; setTimeout(send,100);
+  };
+  micRec.onerror=()=>{ btn.classList.remove('active'); micRec=null; };
+  micRec.start();
+}
+
+// ── Helpers ───────────────────────────────────────
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+function autoH(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+</script>
+</body>
+</html>

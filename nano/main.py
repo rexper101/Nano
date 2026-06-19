@@ -1,7 +1,7 @@
 """
 Nano — AI Desktop Assistant v3
 ================================
-VAD → Whisper STT → Ollama LLM → Anime Character TTS
+VAD → Whisper STT → Ollama LLM → Japanese-accent TTS
 + Anime girl avatar overlay
 + Full chat UI (ui/index.html)
 
@@ -11,31 +11,22 @@ Run:
   python main.py --no-avatar no avatar window
 """
 
-import sys
-if sys.platform.startswith("win"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
-    except AttributeError:
-        pass
-
 import time
 import threading
-import socket
 import sounddevice as sd
 import numpy as np
 from queue import Queue
 
 from stt.vad             import VADDetector
 from stt.transcriber     import Transcriber
-from tts.japanese_speaker import NanoTTSSpeaker
+from tts.japanese_speaker import JapaneseTTSSpeaker
 from agents.router       import Router
 
 
 SYSTEM_PROMPT = (
-    "You are Nano, a cheerful and charming AI desktop assistant. "
-    "You have a cute, playful personality — warm, witty, and slightly teasing. "
-    "Speak naturally in clear English. Keep every reply under three sentences. "
+    "You are Nano, a cheerful AI desktop assistant with a Japanese accent. "
+    "Speak warmly and naturally, like a helpful Japanese girl. "
+    "Keep every reply under three sentences — be direct and friendly. "
     "You can write code, run commands, manage files, update CVs, "
     "apply for jobs, reply to emails, and search the web. "
     "When you finish an action, briefly confirm what you did."
@@ -65,9 +56,9 @@ class Nano:
         self.stt = Transcriber()
         print("ready ✓")
 
-        # ── TTS (Anime character voice) ──────────────────────────────────
-        print("  TTS     : loading Nano voice...", end=" ", flush=True)
-        self.tts = NanoTTSSpeaker()
+        # ── TTS (Japanese accent) ─────────────────────────────────────────
+        print("  TTS     : loading Japanese voice...", end=" ", flush=True)
+        self.tts = JapaneseTTSSpeaker()
         print("ready ✓")
 
         # ── Router / agents ───────────────────────────────────────────────
@@ -88,7 +79,7 @@ class Nano:
               else "Say something to Nano!") + "\033[0m\n")
 
         # Greeting
-        greeting = "Hey there! I'm Nano, your personal AI assistant. What can I do for you today?"
+        greeting = "Konnichiwa! I am Nano, your AI desktop assistant. How can I help you today?"
         self._speak(greeting)
 
         if text_mode:
@@ -178,35 +169,14 @@ class Nano:
         print("\033[36m")
         print("  ╔══════════════════════════════════════════╗")
         print("  ║   N  A  N  O   A  I   A  S  S  I  S  T ║")
-        print("  ║   Nano Voice ✦ Offline ✦ Windows         ║")
+        print("  ║   Anime Voice ✦ Offline ✦ Windows        ║")
         print("  ╚══════════════════════════════════════════╝")
         print("\033[0m")
 
     def _ui(self):
         import os
         ui = os.path.abspath("ui/index.html")
-
-        # Try to start local API server (uvicorn) if port 8000 not in use
-        def _port_open(host='127.0.0.1', port=8000):
-            try:
-                s = socket.socket()
-                s.settimeout(0.4)
-                s.connect((host, port))
-                s.close()
-                return True
-            except Exception:
-                return False
-
-        if not _port_open():
-            def _run_api():
-                try:
-                    import uvicorn
-                    uvicorn.run("api_server:app", host="127.0.0.1", port=8000, log_level="warning")
-                except Exception as e:
-                    print(f"  API: failed to start ({e})")
-            threading.Thread(target=_run_api, daemon=True).start()
-
-        print(f"\n  \033[36mDashboard → open in browser (or visit http://localhost:8000):\033[0m")
+        print(f"\n  \033[36mDashboard → open in browser:\033[0m")
         print(f"  file:///{ui}\n")
 
 
