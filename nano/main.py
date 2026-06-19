@@ -1,14 +1,12 @@
 """
-Nano — AI Desktop Assistant v3
-================================
-VAD → Whisper STT → Ollama LLM → Japanese-accent TTS
-+ Anime girl avatar overlay
-+ Full chat UI (ui/index.html)
+Nano — AI Desktop Assistant
+=============================
+VAD → Whisper STT → Ollama LLM → English TTS
 
 Run:
-  python main.py             full voice + avatar
-  python main.py --text      text mode  (no mic)
-  python main.py --no-avatar no avatar window
+  python main.py            voice mode
+  python main.py --text     text mode (no mic)
+  python main.py --no-avatar  no floating avatar
 """
 
 import time
@@ -17,20 +15,21 @@ import sounddevice as sd
 import numpy as np
 from queue import Queue
 
-from stt.vad             import VADDetector
-from stt.transcriber     import Transcriber
+from stt.transcriber      import Transcriber
 from tts.japanese_speaker import JapaneseTTSSpeaker
-from agents.router       import Router
+from agents.router        import Router
 
 
-SYSTEM_PROMPT = (
-    "You are Nano, a cheerful AI desktop assistant with a Japanese accent. "
-    "Speak warmly and naturally, like a helpful Japanese girl. "
-    "Keep every reply under three sentences — be direct and friendly. "
-    "You can write code, run commands, manage files, update CVs, "
-    "apply for jobs, reply to emails, and search the web. "
-    "When you finish an action, briefly confirm what you did."
-)
+SYSTEM_PROMPT = """You are Nano, a helpful AI desktop assistant.
+
+RULES YOU MUST FOLLOW:
+1. ALWAYS respond in English only — never use any other language.
+2. Keep every reply SHORT — under 3 sentences maximum.
+3. Be direct, friendly, and clear.
+4. When you complete an action, briefly confirm what you did in one sentence.
+5. Never output code blocks in your spoken reply — describe what you did instead.
+6. Do not use markdown, bullet points, or special characters in your replies.
+"""
 
 
 class Nano:
@@ -41,13 +40,13 @@ class Nano:
         self.audio_queue = Queue()
         self.avatar      = None
 
-        # ── Anime avatar overlay ──────────────────────────────────────────
+        # ── Avatar ────────────────────────────────────────────────────────
         if not no_avatar:
             try:
                 from avatar.anime_avatar import AnimeAvatarWindow
                 self.avatar = AnimeAvatarWindow()
                 self.avatar.start_in_thread()
-                print("  Avatar  : anime girl overlay running ✓")
+                print("  Avatar  : running ✓")
             except Exception as e:
                 print(f"  Avatar  : disabled ({e})")
 
@@ -56,31 +55,29 @@ class Nano:
         self.stt = Transcriber()
         print("ready ✓")
 
-        # ── TTS (Japanese accent) ─────────────────────────────────────────
-        print("  TTS     : loading Japanese voice...", end=" ", flush=True)
+        # ── TTS ───────────────────────────────────────────────────────────
+        print("  TTS     : loading voice...", end=" ", flush=True)
         self.tts = JapaneseTTSSpeaker()
         print("ready ✓")
 
-        # ── Router / agents ───────────────────────────────────────────────
+        # ── Router ────────────────────────────────────────────────────────
         print("  Agents  : ready ✓")
         self.router = Router(system_prompt=SYSTEM_PROMPT)
 
-        # ── Voice Activity Detection ──────────────────────────────────────
+        # ── VAD ───────────────────────────────────────────────────────────
         if not text_mode:
+            from stt.vad import VADDetector
             self.vad = VADDetector(
-                on_speech_start=self._on_speech_start,
-                on_speech_end=self._on_speech_end,
+                on_speech_start=lambda: None,
+                on_speech_end=self._on_audio,
                 sensitivity=0.4,
             )
 
-        self._ui()
-        print("\n\033[36m  All systems online!\033[0m")
-        print("\033[36m  " + ("Type your command below." if text_mode
-              else "Say something to Nano!") + "\033[0m\n")
+        self._show_ui_link()
+        print("\n\033[31m  All systems online!\033[0m")
+        print("\033[31m  " + ("Type below." if text_mode else "Speak to Nano!") + "\033[0m\n")
 
-        # Greeting
-        greeting = "Konnichiwa! I am Nano, your AI desktop assistant. How can I help you today?"
-        self._speak(greeting)
+        self._speak("Hello! I am Nano, your AI desktop assistant. How can I help you?")
 
         if text_mode:
             self._text_loop()
@@ -91,45 +88,39 @@ class Nano:
             while True:
                 time.sleep(1)
 
-    # ── Avatar state helper ───────────────────────────────────────────────
+    # ── Avatar ────────────────────────────────────────────────────────────
 
     def _set(self, state):
         if self.avatar:
             self.avatar.set_state(state)
 
-    # ── VAD callbacks ─────────────────────────────────────────────────────
+    # ── Audio pipeline ────────────────────────────────────────────────────
 
-    def _on_speech_start(self):
-        pass
-
-    def _on_speech_end(self, audio):
+    def _on_audio(self, audio):
         if audio is not None and len(audio) > 8000:
             self.audio_queue.put(audio)
-
-    # ── Transcription loop ────────────────────────────────────────────────
 
     def _transcription_loop(self):
         while True:
             if not self.audio_queue.empty():
                 self._set("thinking")
-                data = self.audio_queue.get()
-                text = self.stt.transcribe(data).get("text", "").strip()
+                audio = self.audio_queue.get()
+                result = self.stt.transcribe(audio)
+                text   = result.get("text", "").strip()
                 if text and len(text) > 1:
                     self._handle(text)
                 else:
                     self._set("listening")
             time.sleep(0.05)
 
-    # ── Text loop ─────────────────────────────────────────────────────────
-
     def _text_loop(self):
         while True:
             try:
-                text = input("\033[32mYou : \033[0m").strip()
+                text = input("\033[31mYou : \033[0m").strip()
                 if text:
                     self._handle(text)
             except (KeyboardInterrupt, EOFError):
-                print("\n\033[36mSayonara!\033[0m")
+                print("\n\033[31mGoodbye!\033[0m")
                 break
 
     # ── Core pipeline ─────────────────────────────────────────────────────
@@ -142,9 +133,9 @@ class Nano:
         response, action = self.router.process(text, self.history)
 
         if action:
-            print(f"\033[35mAct  : {action[:180]}\033[0m")
+            print(f"\033[33mAct  : {action[:200]}\033[0m")
 
-        print(f"\033[33mNano : {response}\033[0m\n")
+        print(f"\033[31mNano : {response}\033[0m\n")
         self.history.append({"role": "assistant", "content": response})
         if len(self.history) > 20:
             self.history = self.history[-20:]
@@ -159,25 +150,24 @@ class Nano:
         audio, rate = self.tts.synthesise(text)
         if audio is not None:
             sd.play(audio, rate, blocking=True)
-            time.sleep(0.3)
+            time.sleep(0.2)
         if self.avatar:
             self.avatar.stop_speaking()
 
-    # ── Banner & UI hint ──────────────────────────────────────────────────
+    # ── Helpers ───────────────────────────────────────────────────────────
 
     def _banner(self):
-        print("\033[36m")
+        print("\033[31m")
         print("  ╔══════════════════════════════════════════╗")
-        print("  ║   N  A  N  O   A  I   A  S  S  I  S  T ║")
-        print("  ║   Anime Voice ✦ Offline ✦ Windows        ║")
+        print("  ║         N A N O   A I   v 3 . 0         ║")
+        print("  ║     English Voice · Offline · Windows    ║")
         print("  ╚══════════════════════════════════════════╝")
         print("\033[0m")
 
-    def _ui(self):
-        import os
-        ui = os.path.abspath("ui/index.html")
-        print(f"\n  \033[36mDashboard → open in browser:\033[0m")
-        print(f"  file:///{ui}\n")
+    def _show_ui_link(self):
+        print(f"\n  \033[31mDashboard → open Chrome and go to:\033[0m")
+        print(f"  \033[33mhttp://localhost:8000\033[0m")
+        print(f"  \033[31m(run api_server.py first in another terminal)\033[0m\n")
 
 
 if __name__ == "__main__":
