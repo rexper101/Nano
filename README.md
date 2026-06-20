@@ -110,35 +110,3 @@ nano/
 │   ├── search_tool.py    ← Web search
 │   ├── screen_tool.py    ← Screenshot + OCR + LLaVA
 │   └── memory_tool.py    ← Persistent memory
-│
-├── ui/
-│   └── index.html        ← Anime dark chat dashboard ★
-│
-├── config/
-│   └── secrets.json      ← Gmail credentials (optional)
-│
-└── requirements.txt
-```
-
----
-
-## Voice Setup
-
-The Japanese voice (`ja-JP-NanamiNeural`) uses Microsoft Edge TTS — free, no API key, requires internet for the first call per session. It sounds like a natural Japanese girl speaking English.
-
-If offline, Nano falls back to Piper TTS automatically.
-
----
-
-## Gmail Setup (optional)
-
-1. Enable 2-factor auth on Gmail
-2. Go to **Google Account → Security → App Passwords**
-3. Create app password for "Mail"
-4. Add to `config/secrets.json`:
-```json
-{
-  "gmail_user": "you@gmail.com",
-  "gmail_password": "xxxx xxxx xxxx xxxx"
-}
-```
