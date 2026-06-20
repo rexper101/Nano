@@ -619,6 +619,52 @@ function setView(v){
   };
   if(presets[v]) send(presets[v]);
 }
+
+// ── Mic ───────────────────────────────────────────
+function toggleVoice(){
+  const btn=document.getElementById('speak-btn');
+  if(micRec){
+    micRec.stop(); micRec=null;
+    btn.classList.remove('active');
+    document.querySelector('#speak-btn .mic-icon')&&(()=>{})();
+    return;
+  }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){addSysMsg('Voice input needs Chrome browser.');return;}
+  micRec=new SR();
+  micRec.lang='en-US';
+  micRec.onstart =()=>{ btn.classList.add('active'); setEmo('listening'); };
+  micRec.onresult=(e)=>{
+    const t=e.results[0][0].transcript;
+    document.getElementById('txt').value=t;
+    btn.classList.remove('active'); micRec=null;
+    setTimeout(send,100);
+  };
+  micRec.onerror=()=>{ btn.classList.remove('active'); micRec=null; setEmo('idle'); };
+  micRec.start();
+}
+
+function toggleMic(){
+  const btn=document.getElementById('mic-btn');
+  if(micRec){micRec.stop();micRec=null;btn.classList.remove('active');return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){addSysMsg('Voice input needs Chrome.');return;}
+  micRec=new SR();
+  micRec.lang='en-US';
+  micRec.onstart =()=>{ btn.classList.add('active'); setEmo('listening'); };
+  micRec.onresult=(e)=>{
+    document.getElementById('txt').value=e.results[0][0].transcript;
+    btn.classList.remove('active'); micRec=null; setTimeout(send,100);
+  };
+  micRec.onerror=()=>{ btn.classList.remove('active'); micRec=null; };
+  micRec.start();
+}
+
+// ── Helpers ───────────────────────────────────────
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+function autoH(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
 </script>
 </body>
 </html>
