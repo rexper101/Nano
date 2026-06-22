@@ -503,4 +503,79 @@ class AnimeAvatarWindow:
             fill="#c090ff", width=1, smooth=True,
         )
 
-   
+    # ── Accessories ──────────────────────────────────────────────────────────
+
+    def _draw_accessories(self, c, em, fy):
+        aura = em["aura"]
+        bob  = self._hair_bob * 2
+
+        # Hair clip (left side)
+        c.create_rectangle(CX-54, fy-58+bob, CX-44, fy-50+bob,
+                           fill=aura, outline="#ffffff40")
+        c.create_text(CX-49, fy-54+bob, text="✦",
+                      fill="white", font=("Arial", 6))
+
+        # Star on right
+        c.create_text(CX+50, fy-56+bob, text="★",
+                      fill=aura, font=("Arial", 8))
+
+    # ── UI labels ────────────────────────────────────────────────────────────
+
+    def _draw_ui(self, c, em):
+        aura = em["aura"]
+
+        # Name
+        c.create_text(CX, H-44, text="NANO",
+                      fill=aura, font=("Courier New", 13, "bold"))
+
+        # Status
+        c.create_text(CX, H-24, text=em["label"],
+                      fill=aura, font=("Courier New", 8, "bold"))
+
+        # Pulse dot
+        pulse = abs(math.sin(self._tick * 0.1))
+        dot_r = 4 + int(pulse * 2)
+        c.create_oval(CX-dot_r-60, H-28-dot_r, CX+dot_r-60, H-28+dot_r,
+                      fill=aura, outline="")
+
+    # ── Corner accents ────────────────────────────────────────────────────────
+
+    def _draw_corner_accents(self, c, em):
+        col = em["aura"]
+        sz  = 14
+        for x1, y1, x2, y2 in [
+            (0,0,sz,0),(0,0,0,sz),
+            (W,0,W-sz,0),(W,0,W,sz),
+            (0,H,sz,H),(0,H,0,H-sz),
+            (W,H,W-sz,H),(W,H,W,H-sz),
+        ]:
+            c.create_line(x1, y1, x2, y2, fill=col, width=1)
+
+    # ── Drag ─────────────────────────────────────────────────────────────────
+
+    def _drag_start(self, e):
+        self._dx, self._dy = e.x, e.y
+
+    def _drag_move(self, e):
+        x = self.root.winfo_x() + e.x - self._dx
+        y = self.root.winfo_y() + e.y - self._dy
+        self.root.geometry(f"+{x}+{y}")
+
+
+# ── Standalone test ───────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    av = AnimeAvatarWindow()
+    av.start_in_thread()
+    print("Nano anime avatar running. Testing all states...")
+    states = ["idle","listening","thinking","happy","speaking","error","idle"]
+    try:
+        for s in states:
+            print(f"  → {s}")
+            av.set_state(s)
+            if s == "speaking":
+                av.start_speaking()
+            else:
+                av.stop_speaking()
+            time.sleep(2.5)
+    except KeyboardInterrupt:
+        pass
