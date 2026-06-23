@@ -123,4 +123,57 @@ class Nano:
                 print("\n\033[31mGoodbye!\033[0m")
                 break
 
-    
+    # ── Core pipeline ─────────────────────────────────────────────────────
+
+    def _handle(self, text):
+        print(f"\033[32mYou  : {text}\033[0m")
+        self._set("thinking")
+        self.history.append({"role": "user", "content": text})
+
+        response, action = self.router.process(text, self.history)
+
+        if action:
+            print(f"\033[33mAct  : {action[:200]}\033[0m")
+
+        print(f"\033[31mNano : {response}\033[0m\n")
+        self.history.append({"role": "assistant", "content": response})
+        if len(self.history) > 20:
+            self.history = self.history[-20:]
+
+        self._set("speaking")
+        self._speak(response)
+        self._set("listening")
+
+    def _speak(self, text):
+        if self.avatar:
+            self.avatar.start_speaking()
+        audio, rate = self.tts.synthesise(text)
+        if audio is not None:
+            sd.play(audio, rate, blocking=True)
+            time.sleep(0.2)
+        if self.avatar:
+            self.avatar.stop_speaking()
+
+    # ── Helpers ───────────────────────────────────────────────────────────
+
+    def _banner(self):
+        print("\033[31m")
+        print("  ╔══════════════════════════════════════════╗")
+        print("  ║         N A N O   A I   v 3 . 0         ║")
+        print("  ║     English Voice · Offline · Windows    ║")
+        print("  ╚══════════════════════════════════════════╝")
+        print("\033[0m")
+
+    def _show_ui_link(self):
+        print(f"\n  \033[31mDashboard → open Chrome and go to:\033[0m")
+        print(f"  \033[33mhttp://localhost:8000\033[0m")
+        print(f"  \033[31m(run api_server.py first in another terminal)\033[0m\n")
+
+
+if __name__ == "__main__":
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("--text",       action="store_true")
+    p.add_argument("--no-avatar",  action="store_true")
+    args = p.parse_args()
+    Nano(text_mode=args.text, no_avatar=args.no_avatar)
