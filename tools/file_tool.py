@@ -1,127 +1,106 @@
 """
-File Tool
-==========
-Create files, folders, read and open them.
-
-Examples:
-  "create a folder called MyProject on the desktop"
-  "create a file called notes.txt"
-  "open the downloads folder"
-  "read requirements.txt"
+File Tool — Fixed for Windows
+===============================
+Creates folders/files and opens paths properly.
 """
 
 import os
 import re
 import subprocess
+import webbrowser
 from pathlib import Path
 
 
 class FileTool:
     def run(self, user_text: str) -> str:
-        text = user_text.lower().strip()
+        t = user_text.lower()
 
-        if any(w in text for w in ["create folder", "make folder", "new folder", "mkdir"]):
+        if any(w in t for w in ["create folder","make folder","new folder","mkdir"]):
             return self._create_folder(user_text)
-
-        if any(w in text for w in ["create file", "new file", "make file"]):
+        if any(w in t for w in ["create file","new file","make file"]):
             return self._create_file(user_text)
-
-        if any(w in text for w in ["open folder", "open file", "open the"]):
-            return self._open_path(user_text)
-
-        if any(w in text for w in ["read file", "show file", "read the"]):
+        if any(w in t for w in ["open folder","open file","open the"]):
+            return self._open_path(t)
+        if any(w in t for w in ["read file","show file","read the","contents of"]):
             return self._read_file(user_text)
 
         return ""
 
-    def _extract_name(self, text: str, keyword: str) -> str:
-        """Extract name after keyword like 'called X' or 'named X'."""
-        patterns = [
-            rf"{keyword}\s+called\s+['\"]?(.+?)['\"]?$",
-            rf"{keyword}\s+named\s+['\"]?(.+?)['\"]?$",
-            rf"called\s+['\"]?(.+?)['\"]?",
-            rf"named\s+['\"]?(.+?)['\"]?",
-            rf"['\"](.+?)['\"]",
-        ]
-        for pat in patterns:
+    def _extract_name(self, text: str) -> str:
+        for pat in [
+            r'called\s+["\']?([^"\']+?)["\']?\s*(?:on|in|at|$)',
+            r'named\s+["\']?([^"\']+?)["\']?\s*(?:on|in|at|$)',
+            r'"([^"]+)"',
+            r"'([^']+)'",
+        ]:
             m = re.search(pat, text, re.IGNORECASE)
             if m:
                 return m.group(1).strip()
         return ""
 
-    def _resolve_path(self, text: str, name: str) -> Path:
-        """Resolve full path, defaulting to Desktop."""
-        base = Path(os.path.expanduser("~/Desktop"))
-        if "documents" in text.lower():
-            base = Path(os.path.expanduser("~/Documents"))
-        elif "downloads" in text.lower():
-            base = Path(os.path.expanduser("~/Downloads"))
-        return base / name
+    def _base_path(self, text: str) -> Path:
+        tl = text.lower()
+        if "document" in tl:  return Path(os.path.expanduser("~/Documents"))
+        if "download" in tl:  return Path(os.path.expanduser("~/Downloads"))
+        if "picture"  in tl:  return Path(os.path.expanduser("~/Pictures"))
+        return Path(os.path.expanduser("~/Desktop"))
 
     def _create_folder(self, text: str) -> str:
-        name = self._extract_name(text, "folder")
-        if not name:
-            name = "NewFolder"
-        path = self._resolve_path(text, name)
+        name = self._extract_name(text) or "NewFolder"
+        # Remove path-unsafe chars
+        name = re.sub(r'[<>:"/\\|?*]', '', name).strip()
+        path = self._base_path(text) / name
         path.mkdir(parents=True, exist_ok=True)
+        # Open it in Explorer
+        subprocess.Popen(f'explorer "{path}"', shell=True)
         return f"Folder created: {path}"
 
     def _create_file(self, text: str) -> str:
-        name = self._extract_name(text, "file")
-        if not name:
-            name = "new_file.txt"
-        path = self._resolve_path(text, name)
+        name = self._extract_name(text) or "new_file.txt"
+        name = re.sub(r'[<>:"/\\|?*]', '', name).strip()
+        path = self._base_path(text) / name
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             path.write_text("", encoding="utf-8")
-        # Open in default editor
-        try:
-            os.startfile(str(path))
-        except Exception:
-            pass
+        os.startfile(str(path))
         return f"File created: {path}"
 
     def _open_path(self, text: str) -> str:
-        # Common locations
-        locations = {
+        LOCS = {
             "desktop":   os.path.expanduser("~/Desktop"),
             "downloads": os.path.expanduser("~/Downloads"),
             "documents": os.path.expanduser("~/Documents"),
             "pictures":  os.path.expanduser("~/Pictures"),
             "music":     os.path.expanduser("~/Music"),
+            "videos":    os.path.expanduser("~/Videos"),
         }
-        for name, loc in locations.items():
-            if name in text.lower():
-                os.startfile(loc)
+        for name, loc in LOCS.items():
+            if name in text:
+                subprocess.Popen(f'explorer "{loc}"', shell=True)
                 return f"Opened {name} folder."
 
-        # Try to find a specific file/folder name
-        name = self._extract_name(text, "open")
+        name = self._extract_name(text)
         if name:
-            path = Path(name)
-            if not path.is_absolute():
-                path = Path(os.path.expanduser("~/Desktop")) / name
-            if path.exists():
-                os.startfile(str(path))
-                return f"Opened {path}"
+            p = Path(os.path.expanduser("~/Desktop")) / name
+            if p.exists():
+                os.startfile(str(p))
+                return f"Opened {p}"
         return ""
 
     def _read_file(self, text: str) -> str:
-        name = self._extract_name(text, "file")
+        name = self._extract_name(text)
         if not name:
             return ""
-        # Search common locations
-        search_dirs = [
-            Path(os.path.expanduser("~/Desktop")),
-            Path(os.path.expanduser("~/Documents")),
-            Path(os.path.expanduser("~/Downloads")),
-            Path("."),
-        ]
-        for d in search_dirs:
-            path = d / name
-            if path.exists() and path.is_file():
-                content = path.read_text(encoding="utf-8", errors="ignore")
-                if len(content) > 500:
-                    content = content[:500] + "...(truncated)"
-                return f"Contents of {name}:\n{content}"
-        return f"File '{name}' not found."
+        for base in [Path(os.path.expanduser("~/Desktop")),
+                     Path(os.path.expanduser("~/Documents")),
+                     Path("."), Path(os.path.expanduser("~"))]:
+            p = base / name
+            if p.exists() and p.is_file():
+                try:
+                    content = p.read_text(encoding="utf-8", errors="ignore")
+                    if len(content) > 600:
+                        content = content[:600] + "\n...(truncated)"
+                    return f"Contents of {name}:\n{content}"
+                except Exception as e:
+                    return f"Could not read {name}: {e}"
+        return f"File '{name}' not found on Desktop or Documents."
