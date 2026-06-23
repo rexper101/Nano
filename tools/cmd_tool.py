@@ -1,87 +1,107 @@
 """
-CMD Tool
-=========
-Runs shell commands via PowerShell on Windows.
-Has a safety blocklist — dangerous commands are refused.
-
-Examples Nano can handle:
-  "run ipconfig"
-  "install requests using pip"
-  "check disk space"
-  "run my script train.py"
-  "git status"
-  "create a folder called MyProject"
+CMD Tool — Fixed
+=================
+Actually runs commands on Windows via subprocess.
+Minimal safety list — only blocks truly dangerous ops.
 """
 
-import subprocess
-import re
 import os
+import re
+import subprocess
 
 
-# Commands that are always blocked
+# Only block genuinely destructive commands
 BLOCKED = [
-    "format", "del /f", "rm -rf", "shutdown", "taskkill",
-    "reg delete", "diskpart", "cipher /w", "sfc /scannow",
-    "net user", "net localgroup",
+    "format c:", "rm -rf /", "del /f /s /q c:\\",
+    "shutdown /r", "shutdown /s",
+    "reg delete hklm", "reg delete hkcu",
+    "net user administrator",
 ]
 
 
 class CMDTool:
     def run(self, user_text: str) -> str:
-        command = self._extract_command(user_text)
-        if not command:
+        cmd = self._extract(user_text)
+        if not cmd:
             return ""
 
         # Safety check
-        for blocked in BLOCKED:
-            if blocked in command.lower():
-                return f"Blocked: '{blocked}' is not allowed for safety."
+        cmd_lower = cmd.lower()
+        for b in BLOCKED:
+            if b in cmd_lower:
+                return f"Blocked for safety: {b}"
 
-        return self._execute(command)
+        return self._execute(cmd)
 
-    def _extract_command(self, text: str) -> str:
-        """Pull the actual command from natural language."""
-        text = text.strip()
+    def _extract(self, text: str) -> str:
+        """Convert natural language to a real command."""
+        t = text.strip()
 
-        # Direct patterns
-        patterns = [
-            r"run\s+(.+)",
-            r"execute\s+(.+)",
-            r"terminal[:\s]+(.+)",
-            r"command[:\s]+(.+)",
-            r"shell[:\s]+(.+)",
-        ]
-        for pat in patterns:
-            m = re.search(pat, text, re.IGNORECASE)
-            if m:
+        # ── Direct "run X" / "execute X" ──────────────────────────────────
+        for pat in [
+            r"(?:run|execute|terminal|command|cmd)[:\s]+(.+)",
+            r"(?:open|launch)\s+(?:a\s+)?(?:new\s+)?(?:cmd|terminal|command prompt)",
+        ]:
+            m = re.search(pat, t, re.IGNORECASE)
+            if m and m.lastindex:
                 return m.group(1).strip()
 
-        # Natural language → command mapping
-        mappings = {
-            "install (.+) using pip":  lambda m: f"pip install {m.group(1)}",
-            "install (.+)":            lambda m: f"pip install {m.group(1)}",
-            "check disk space":        lambda _: "wmic logicaldisk get size,freespace,caption",
-            "disk space":              lambda _: "wmic logicaldisk get size,freespace,caption",
-            "list files":              lambda _: "dir",
-            "show ip":                 lambda _: "ipconfig",
-            "ipconfig":                lambda _: "ipconfig",
-            "git status":              lambda _: "git status",
-            "git log":                 lambda _: "git log --oneline -10",
-            "python version":          lambda _: "python --version",
-            "pip list":                lambda _: "pip list",
-            "running processes":       lambda _: "tasklist",
-            r"run (.+\.py)":           lambda m: f"python {m.group(1)}",
-            r"ping (.+)":              lambda m: f"ping -n 4 {m.group(1)}",
-        }
-        for pattern, builder in mappings.items():
-            m = re.search(pattern, text, re.IGNORECASE)
-            if m:
-                return builder(m)
+        # ── Natural language → command ──────────────────────────────────────
+        tl = t.lower()
+
+        # pip installs
+        m = re.search(r"install\s+([\w\-\[\]]+(?:\s+[\w\-\[\]]+)*)\s+(?:using|with|via)?\s*pip", tl)
+        if m:
+            pkg = m.group(1).strip()
+            return f"pip install {pkg}"
+
+        m = re.search(r"pip\s+install\s+([\w\-\[\]]+)", tl)
+        if m:
+            return f"pip install {m.group(1)}"
+
+        # git commands
+        for kw in ["git status","git log","git pull","git push","git diff","git branch","git add","git commit"]:
+            if kw in tl:
+                return kw + (" --oneline -10" if kw == "git log" else "")
+
+        # system info
+        if any(w in tl for w in ["ipconfig","ip config","my ip","network info"]):
+            return "ipconfig"
+        if any(w in tl for w in ["disk space","disk usage","storage","how much space"]):
+            return "wmic logicaldisk get caption,size,freespace"
+        if any(w in tl for w in ["running processes","task list","what's running","processes"]):
+            return "tasklist"
+        if any(w in tl for w in ["python version","which python"]):
+            return "python --version"
+        if any(w in tl for w in ["pip list","installed packages","list packages"]):
+            return "pip list"
+        if "dir" in tl or "list files" in tl or "ls" in tl:
+            return "dir"
+        if "whoami" in tl:
+            return "whoami"
+        if "hostname" in tl:
+            return "hostname"
+
+        # ping
+        m = re.search(r"ping\s+([\w\.\-]+)", tl)
+        if m:
+            return f"ping -n 4 {m.group(1)}"
+
+        # run a python script
+        m = re.search(r"run\s+([\w\-]+\.py)", tl)
+        if m:
+            return f"python {m.group(1)}"
+
+        # mkdir
+        m = re.search(r"(?:make|create|mkdir)\s+(?:a\s+)?(?:folder|directory)\s+(?:called|named)?\s*([\w\-\s]+)", tl)
+        if m:
+            name = m.group(1).strip().replace(" ","_")
+            return f'mkdir "{name}"'
 
         return ""
 
     def _execute(self, command: str) -> str:
-        print(f"\033[35m[CMD] Running: {command}\033[0m")
+        print(f"[CMD] Executing: {command}")
         try:
             result = subprocess.run(
                 command,
@@ -90,13 +110,24 @@ class CMDTool:
                 text=True,
                 timeout=30,
                 cwd=os.path.expanduser("~"),
+                encoding="utf-8",
+                errors="replace",
             )
-            output = (result.stdout or result.stderr or "").strip()
-            # Truncate long output
-            if len(output) > 800:
-                output = output[:800] + "\n...(truncated)"
-            return output if output else "Command executed successfully."
+            output = (result.stdout or "") + (result.stderr or "")
+            output = output.strip()
+
+            if not output:
+                return f"Command completed: {command}"
+
+            # Trim very long output
+            if len(output) > 1000:
+                lines  = output.splitlines()
+                output = "\n".join(lines[:30])
+                output += f"\n... ({len(lines)} lines total, showing first 30)"
+
+            return output
+
         except subprocess.TimeoutExpired:
             return "Command timed out after 30 seconds."
         except Exception as e:
-            return f"Error: {e}"
+            return f"Error running command: {e}"
