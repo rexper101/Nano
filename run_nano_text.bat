@@ -11,9 +11,3 @@ if %errorlevel% neq 0 (
     timeout /t 3 /nobreak >nul
 )
 
-start /min "Nano API" python api_server.py
-timeout /t 2 /nobreak >nul
-start "" "ui\index.html"
-
-python main.py --text
-pause
