@@ -128,17 +128,4 @@ The Japanese voice (`ja-JP-NanamiNeural`) uses Microsoft Edge TTS — free, no A
 
 If offline, Nano falls back to Piper TTS automatically.
 
----
 
-## Gmail Setup (optional)
-
-1. Enable 2-factor auth on Gmail
-2. Go to **Google Account → Security → App Passwords**
-3. Create app password for "Mail"
-4. Add to `config/secrets.json`:
-```json
-{
-  "gmail_user": "you@gmail.com",
-  "gmail_password": "xxxx xxxx xxxx xxxx"
-}
-```
