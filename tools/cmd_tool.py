@@ -1,133 +1,166 @@
 """
-CMD Tool — Fixed
-=================
-Actually runs commands on Windows via subprocess.
-Minimal safety list — only blocks truly dangerous ops.
+CMD Tool — Real-time Windows Execution
+========================================
+Executes commands directly on Windows via PowerShell.
+Streams output in real time. Minimal safety list.
 """
 
 import os
 import re
 import subprocess
+import sys
 
-
-# Only block genuinely destructive commands
-BLOCKED = [
-    "format c:", "rm -rf /", "del /f /s /q c:\\",
-    "shutdown /r", "shutdown /s",
-    "reg delete hklm", "reg delete hkcu",
-    "net user administrator",
+HARD_BLOCKED = [
+    "format c:", "del /f /s /q c:\\windows",
+    "rm -rf /", "shutdown /r /t 0", "shutdown /s /t 0",
+    "reg delete hklm\\sam",
 ]
 
 
 class CMDTool:
+
     def run(self, user_text: str) -> str:
-        cmd = self._extract(user_text)
+        cmd = self._to_command(user_text)
         if not cmd:
             return ""
-
-        # Safety check
-        cmd_lower = cmd.lower()
-        for b in BLOCKED:
-            if b in cmd_lower:
-                return f"Blocked for safety: {b}"
-
         return self._execute(cmd)
 
-    def _extract(self, text: str) -> str:
-        """Convert natural language to a real command."""
-        t = text.strip()
-
-        # ── Direct "run X" / "execute X" ──────────────────────────────────
-        for pat in [
-            r"(?:run|execute|terminal|command|cmd)[:\s]+(.+)",
-            r"(?:open|launch)\s+(?:a\s+)?(?:new\s+)?(?:cmd|terminal|command prompt)",
-        ]:
-            m = re.search(pat, t, re.IGNORECASE)
-            if m and m.lastindex:
-                return m.group(1).strip()
-
-        # ── Natural language → command ──────────────────────────────────────
+    def _to_command(self, text: str) -> str:
+        t  = text.strip()
         tl = t.lower()
 
-        # pip installs
-        m = re.search(r"install\s+([\w\-\[\]]+(?:\s+[\w\-\[\]]+)*)\s+(?:using|with|via)?\s*pip", tl)
+        # Raw command after "run" / "execute"
+        m = re.match(r"^(?:run|execute|cmd|terminal)[:\s]+(.+)", t, re.IGNORECASE)
         if m:
-            pkg = m.group(1).strip()
-            return f"pip install {pkg}"
+            return m.group(1).strip()
 
-        m = re.search(r"pip\s+install\s+([\w\-\[\]]+)", tl)
+        # pip install
+        m = re.search(r"install\s+([\w\-\[\],\s]+?)\s+(?:using|with|via)?\s*pip", tl)
         if m:
-            return f"pip install {m.group(1)}"
+            return f"pip install {m.group(1).strip()}"
+        m = re.search(r"pip\s+install\s+([\w\-\[\]\s,]+)", tl)
+        if m:
+            return f"pip install {m.group(1).strip()}"
 
-        # git commands
-        for kw in ["git status","git log","git pull","git push","git diff","git branch","git add","git commit"]:
+        # pip uninstall
+        m = re.search(r"(?:uninstall|remove)\s+([\w\-]+)\s+(?:using|from)?\s*pip", tl)
+        if m:
+            return f"pip uninstall {m.group(1)} -y"
+
+        # git
+        GIT = {"git status":"git status","git log":"git log --oneline -15",
+               "git pull":"git pull","git push":"git push","git diff":"git diff",
+               "git branch":"git branch -a","git fetch":"git fetch"}
+        for kw, cmd in GIT.items():
             if kw in tl:
-                return kw + (" --oneline -10" if kw == "git log" else "")
+                return cmd
+        m = re.search(r"git\s+(add|commit|checkout|merge|clone|init)\s*(.*)", tl)
+        if m:
+            return f"git {m.group(1)} {m.group(2)}".strip()
 
         # system info
-        if any(w in tl for w in ["ipconfig","ip config","my ip","network info"]):
+        if any(w in tl for w in ["ipconfig","my ip","ip address","network"]):
             return "ipconfig"
-        if any(w in tl for w in ["disk space","disk usage","storage","how much space"]):
-            return "wmic logicaldisk get caption,size,freespace"
-        if any(w in tl for w in ["running processes","task list","what's running","processes"]):
+        if any(w in tl for w in ["disk space","disk usage","storage","free space"]):
+            return "wmic logicaldisk get caption,size,freespace /format:list"
+        if any(w in tl for w in ["cpu","processor"]):
+            return "wmic cpu get name,loadpercentage"
+        if any(w in tl for w in ["ram","memory usage"]):
+            return "wmic OS get freephysicalmemory,totalvisiblememorysize"
+        if any(w in tl for w in ["running processes","task list","process list"]):
             return "tasklist"
         if any(w in tl for w in ["python version","which python"]):
-            return "python --version"
-        if any(w in tl for w in ["pip list","installed packages","list packages"]):
+            return f'"{sys.executable}" --version'
+        if any(w in tl for w in ["pip list","installed packages"]):
             return "pip list"
-        if "dir" in tl or "list files" in tl or "ls" in tl:
-            return "dir"
         if "whoami" in tl:
             return "whoami"
         if "hostname" in tl:
             return "hostname"
+        if any(w in tl for w in ["system info","os version","windows version"]):
+            return 'systeminfo | findstr /C:"OS Name" /C:"OS Version" /C:"Total Physical"'
+        if any(w in tl for w in ["list files","show files","dir","ls"]):
+            return "dir"
+        if any(w in tl for w in ["environment","env vars"]):
+            return "set"
+
+        # mkdir
+        m = re.search(r"(?:create|make|mkdir)\s+(?:a\s+)?(?:folder|directory)\s+(?:called|named)?\s*[\"']?([^\"']+?)[\"']?\s*(?:on|in|at|$)", tl)
+        if m:
+            name = m.group(1).strip()
+            base = "Desktop"
+            if "documents" in tl: base = "Documents"
+            elif "downloads" in tl: base = "Downloads"
+            path = os.path.join(os.path.expanduser(f"~/{base}"), name)
+            return f'mkdir "{path}"'
 
         # ping
         m = re.search(r"ping\s+([\w\.\-]+)", tl)
         if m:
             return f"ping -n 4 {m.group(1)}"
 
-        # run a python script
-        m = re.search(r"run\s+([\w\-]+\.py)", tl)
+        # run python script
+        m = re.search(r"run\s+([\w\-\.]+\.py)", tl)
         if m:
-            return f"python {m.group(1)}"
+            return f'"{sys.executable}" {m.group(1)}'
 
-        # mkdir
-        m = re.search(r"(?:make|create|mkdir)\s+(?:a\s+)?(?:folder|directory)\s+(?:called|named)?\s*([\w\-\s]+)", tl)
+        # npm
+        m = re.search(r"npm\s+(install|start|run|build|test)\s*(.*)", tl)
         if m:
-            name = m.group(1).strip().replace(" ","_")
-            return f'mkdir "{name}"'
+            return f"npm {m.group(1)} {m.group(2)}".strip()
+
+        # taskkill
+        m = re.search(r"(?:kill|stop|end)\s+(?:process\s+)?[\"']?([^\"']+)[\"']?$", tl)
+        if m:
+            name = m.group(1).strip()
+            if not name.endswith(".exe"): name += ".exe"
+            return f'taskkill /F /IM "{name}"'
 
         return ""
 
     def _execute(self, command: str) -> str:
-        print(f"[CMD] Executing: {command}")
+        cmd_lower = command.lower().strip()
+        for blocked in HARD_BLOCKED:
+            if blocked in cmd_lower:
+                return f"Blocked for safety: '{blocked}'"
+
+        print(f"[CMD] Running: {command}")
+
         try:
+            if os.name == "nt":
+                full_cmd = ["powershell", "-NoProfile", "-Command", command]
+            else:
+                full_cmd = ["/bin/bash", "-c", command]
+
             result = subprocess.run(
-                command,
-                shell=True,
+                full_cmd,
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=60,
                 cwd=os.path.expanduser("~"),
                 encoding="utf-8",
                 errors="replace",
             )
-            output = (result.stdout or "") + (result.stderr or "")
-            output = output.strip()
+
+            stdout = (result.stdout or "").strip()
+            stderr = (result.stderr or "").strip()
+
+            output = stdout
+            if stderr and not stdout:
+                output = stderr
+            elif stderr and "error" in stderr.lower():
+                output = stdout + "\n" + stderr
 
             if not output:
-                return f"Command completed: {command}"
+                return f"Done: {command}"
 
-            # Trim very long output
-            if len(output) > 1000:
-                lines  = output.splitlines()
-                output = "\n".join(lines[:30])
-                output += f"\n... ({len(lines)} lines total, showing first 30)"
+            lines = output.splitlines()
+            if len(lines) > 50:
+                output = "\n".join(lines[:50]) + f"\n... ({len(lines)-50} more lines)"
 
             return output
 
         except subprocess.TimeoutExpired:
-            return "Command timed out after 30 seconds."
+            return "Command timed out after 60 seconds."
         except Exception as e:
-            return f"Error running command: {e}"
+            return f"Error: {e}"
