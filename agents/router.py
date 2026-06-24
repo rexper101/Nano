@@ -111,3 +111,119 @@ class Router:
                                   "vacancy","job vacancy","internship"]):
             return "job"
 
+        # ── EMAIL ────────────────────────────────────────────────────────
+        if any(w in t for w in ["read my email","check email","check my email",
+                                  "my inbox","unread email","reply to email",
+                                  "send email","send an email"]):
+            return "email"
+
+        # ── WEB SEARCH ───────────────────────────────────────────────────
+        SEARCH_PHRASES = [
+            "search for","search the web","look up","find information",
+            "what is ","who is ","latest news","news about",
+            "tell me about ","google ","how does ","how do ",
+        ]
+        if any(t.startswith(p) or p in t for p in SEARCH_PHRASES):
+            return "search"
+
+        # ── CODE — ONLY when user explicitly asks to write/create code ───
+        CODE_TRIGGERS = [
+            # Must mention a programming language or framework
+            r"write\s+(?:a\s+)?(?:python|flask|django|fastapi|html|css|javascript|js|react|node|sql|bash|powershell|script|program|app|application|function|class|api|website|web app)",
+            r"create\s+(?:a\s+)?(?:python|flask|django|fastapi|html|css|javascript|js|react|node|sql|bash|script|program|app|application|function|class|api|website|web app)",
+            r"build\s+(?:a\s+)?(?:python|flask|django|fastapi|html|css|javascript|js|react|node|sql|bash|script|program|app|application|function|class|api|website|web app)",
+            r"generate\s+(?:a\s+)?(?:python|flask|django|fastapi|html|css|javascript|js|react|node|sql|code|script|program)",
+            r"code\s+(?:for|to|that|which|a)",
+            r"write\s+(?:me\s+)?(?:the\s+)?code",
+            r"write\s+(?:a\s+)?script",
+        ]
+        for pat in CODE_TRIGGERS:
+            if re.search(pat, t):
+                return "code"
+
+        # Default — just chat
+        return "chat"
+
+    # ── Main process ──────────────────────────────────────────────────────
+
+    def process(self, text: str, history: list) -> tuple[str, str]:
+        intent        = self._intent(text)
+        action_result = ""
+
+        try:
+            if intent == "memory":
+                action_result = self.memory.run(text)
+
+            elif intent == "screen":
+                action_result = self.screen.run(text)
+
+            elif intent == "search":
+                action_result = self.search.run(text)
+
+            elif intent == "cmd":
+                action_result = self.cmd.run(text)
+
+            elif intent == "cv":
+                action_result = self.cv.run(text)
+
+            elif intent == "job":
+                action_result = self.job.run(text)
+
+            elif intent == "email":
+                action_result = self.msg.run(text)
+
+            elif intent == "code":
+                action_result = self.code.run(text)
+
+            elif intent == "file":
+                action_result = self.file.run(text)
+
+            elif intent == "app":
+                # Handle "play song on Spotify"
+                if re.search(r"\bplay\b", text.lower()):
+                    action_result = self._handle_play(text)
+                else:
+                    action_result = self.app.run(text)
+
+        except Exception as e:
+            action_result = f"Tool error: {e}"
+
+        # Build LLM context
+        mem_snippets = self.memory.search(text, top_k=2)
+        mem_context  = ""
+        if mem_snippets:
+            mem_context = "\n\nWhat I know about the user:\n" + "\n".join(f"- {s}" for s in mem_snippets)
+
+        llm_input = text
+        if action_result:
+            llm_input = f"{text}\n\n[Action completed: {action_result[:300]}]"
+        if mem_context:
+            llm_input += mem_context
+
+        response = self.llm.chat(llm_input, history)
+        return response, action_result
+
+    def _handle_play(self, text: str) -> str:
+        """Handle music/video play requests."""
+        t = text.lower()
+        # Extract song/artist name
+        m = re.search(r"play\s+(.+?)(?:\s+on\s+\w+)?$", t)
+        song = m.group(1).strip() if m else ""
+
+        if "spotify" in t or not song:
+            # Open Spotify
+            import subprocess
+            subprocess.Popen("spotify", shell=True)
+            return f"Opening Spotify." + (f" Search for: {song}" if song else "")
+
+        if "youtube" in t:
+            import webbrowser
+            query = song.replace(" ", "+")
+            webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
+            return f"Searching YouTube for: {song}"
+
+        # Default: open YouTube search
+        import webbrowser
+        query = song.replace(" ", "+")
+        webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
+        return f"Searching YouTube for: {song}"
