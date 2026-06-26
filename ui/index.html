@@ -394,6 +394,35 @@ function sv(el,v){
   const M={code:'Write a Python Flask web app with login and dashboard',files:'Create a folder called MCA Project on the desktop',screen:'What is on my screen right now',cmd:'Run ipconfig and show me the result',jobs:'Find Python developer jobs in Pune on LinkedIn',memory:'What do you remember about me'};
   if(M[v])send(M[v]);
 }
+
+// Mic
+function toggleVoice(){
+  const btn=document.getElementById('speak-btn');
+  if(micRec){micRec.stop();micRec=null;btn.classList.remove('active');setState('IDLE');return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){sysMsg('Voice input needs Chrome browser.');return;}
+  micRec=new SR();micRec.lang='en-US';
+  micRec.onstart =()=>{btn.classList.add('active');setState('LISTENING');};
+  micRec.onresult=(e)=>{document.getElementById('txt').value=e.results[0][0].transcript;btn.classList.remove('active');micRec=null;setTimeout(send,100);};
+  micRec.onerror =()=>{btn.classList.remove('active');micRec=null;setState('IDLE');};
+  micRec.start();
+}
+function toggleMic(){
+  const btn=document.getElementById('mic-btn');
+  if(micRec){micRec.stop();micRec=null;btn.classList.remove('active');return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){sysMsg('Voice needs Chrome.');return;}
+  micRec=new SR();micRec.lang='en-US';
+  micRec.onstart =()=>{btn.classList.add('active');setState('LISTENING');};
+  micRec.onresult=(e)=>{document.getElementById('txt').value=e.results[0][0].transcript;btn.classList.remove('active');micRec=null;setTimeout(send,100);};
+  micRec.onerror =()=>{btn.classList.remove('active');micRec=null;};
+  micRec.start();
+}
+
+// Helpers
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function ts(){return new Date().toTimeString().slice(0,8);}
+function autoH(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px';}
 </script>
 </body>
 </html>
