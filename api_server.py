@@ -183,3 +183,24 @@ def _intent(text: str) -> str:
     return "chat"
 
 
+def _emotion(r: str) -> str:
+    rl = r.lower()
+    if any(w in rl for w in ["error","sorry","failed","unable","not running"]): return "error"
+    if any(w in rl for w in ["done","created","saved","opened","installed","completed"]): return "happy"
+    return "idle"
+
+
+if __name__ == "__main__":
+    print("\n" + "="*50)
+    print("  Nano API — Fast Mode (phi3:mini)")
+    print("  http://localhost:8000")
+    print("="*50 + "\n")
+    uvicorn.run(
+        "api_server:app",
+        host="0.0.0.0",
+        port=8000,
+        log_level="info",
+        reload=False,
+        ws_ping_interval=20,
+        ws_ping_timeout=20,
+    )
