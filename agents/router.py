@@ -222,3 +222,8 @@ class Router:
             webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
             return f"Searching YouTube for: {song}"
 
+        # Default: open YouTube search
+        import webbrowser
+        query = song.replace(" ", "+")
+        webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
+        return f"Searching YouTube for: {song}"
