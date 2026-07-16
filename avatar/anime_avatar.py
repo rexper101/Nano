@@ -562,20 +562,3 @@ class AnimeAvatarWindow:
         self.root.geometry(f"+{x}+{y}")
 
 
-# ── Standalone test ───────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    av = AnimeAvatarWindow()
-    av.start_in_thread()
-    print("Nano anime avatar running. Testing all states...")
-    states = ["idle","listening","thinking","happy","speaking","error","idle"]
-    try:
-        for s in states:
-            print(f"  → {s}")
-            av.set_state(s)
-            if s == "speaking":
-                av.start_speaking()
-            else:
-                av.stop_speaking()
-            time.sleep(2.5)
-    except KeyboardInterrupt:
-        pass
