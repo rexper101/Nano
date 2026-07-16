@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+data/
+assets/en_US-lessac-medium.onnx
+assets/en_US-lessac-medium.onnx.json
+models/
+*.log
+config/secrets.json
