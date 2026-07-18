@@ -498,4 +498,22 @@ class NanoAgent:
         if any(w in rl for w in ["done","created","saved","opened","installed","found"]): return "happy"
         return "idle"
 
-    
+    def _banner(self):
+        print("\033[31m")
+        print("  ╔══════════════════════════════════════════════╗")
+        print("  ║     N A N O   A I   A G E N T   v 5 . 0    ║")
+        print("  ║  MCP Tools · phi3:mini · Edge TTS · Free    ║")
+        print("  ╚══════════════════════════════════════════════╝")
+        print("\033[0m")
+
+
+import subprocess
+
+if __name__ == "__main__":
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("--text",       action="store_true", help="Text mode, no mic")
+    p.add_argument("--no-avatar",  action="store_true", help="No avatar window")
+    args = p.parse_args()
+    agent = NanoAgent(text_mode=args.text, no_avatar=args.no_avatar)
+    agent.startadd
