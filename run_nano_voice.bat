@@ -10,10 +10,3 @@ if %errorlevel% neq 0 (
     timeout /t 3 /nobreak >nul
 )
 
-start /min "Nano MCP Server" python server.py
-timeout /t 2 /nobreak >nul
-start "" http://localhost:8000
-
-python agent_nano.py
-
-pause
