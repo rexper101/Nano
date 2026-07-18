@@ -28,3 +28,12 @@ timeout /t 2 /nobreak >nul
 echo [3/3] Opening dashboard...
 start "" http://localhost:8000
 
+:: Start agent
+echo.
+echo  Dashboard : http://localhost:8000
+echo  MCP Tools : http://localhost:8001
+echo  Type your commands below.
+echo.
+python agent_nano.py --text
+
+pause
