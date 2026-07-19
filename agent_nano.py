@@ -469,7 +469,11 @@ class NanoAgent:
         dead = set()
         for ws in list(self._ws_clients):
             try:
-                asyncio.run(ws.send_json(msg))
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(ws.send_json(msg))
+                else:
+                    loop.run_until_complete(ws.send_json(msg))
             except Exception:
                 dead.add(ws)
         self._ws_clients -= dead
