@@ -177,3 +177,29 @@ class JapaneseTTSSpeaker:
         text = re.sub(r"⚡.*",            "",        text)  # remove action result
         text = re.sub(r"\s+",            " ",       text).strip()
         return text if len(text) > 2 else ""
+    
+    def _decode_mp3(self, mp3_bytes: bytes) -> tuple:
+    # Try ffmpeg first (most reliable on Windows)
+    try:
+        import subprocess, tempfile, os
+        tmp_mp3 = tempfile.mktemp(suffix=".mp3")
+        tmp_wav = tempfile.mktemp(suffix=".wav")
+        with open(tmp_mp3, "wb") as f:
+            f.write(mp3_bytes)
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", tmp_mp3, "-ar", "22050", "-ac", "1", tmp_wav],
+            capture_output=True, timeout=10
+        )
+        if os.path.exists(tmp_wav):
+            import wave
+            with wave.open(tmp_wav, "rb") as wf:
+                rate = wf.getframerate()
+                frames = wf.readframes(wf.getnframes())
+            os.unlink(tmp_mp3)
+            os.unlink(tmp_wav)
+            audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+            return audio, rate
+    except Exception:
+        pass
+    # Fallback to pyttsx3
+    return None, 0
