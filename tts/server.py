@@ -12,14 +12,13 @@ Install MCP first:  pip install mcp[cli]
 
 import asyncio, datetime, os, platform, re, subprocess, sys, webbrowser
 from pathlib import Path
-from mcp.server.fastmcp import FastMCP
 
 try:
     from mcp.server.fastmcp import FastMCP
 except ImportError:
     print("Install MCP first:  pip install mcp[cli]")
     exit(1)
-    
+
 mcp = FastMCP(
     name="nano",
     instructions="You are Nano, a powerful AI desktop assistant for Windows. Always reply in English."
