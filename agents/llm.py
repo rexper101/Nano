@@ -13,6 +13,7 @@ import httpx
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 
+# Use the exact model names reported by `ollama list`
 # phi3:mini = ~150ms response, great for commands and chat
 # qwen2.5:7b = ~800ms, better for complex reasoning
 FAST_MODEL = "phi3:mini"
