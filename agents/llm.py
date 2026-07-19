@@ -37,18 +37,27 @@ class LLMClient:
         try:
             r = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
             available = [m["name"] for m in r.json().get("models", [])]
+
+            def _match_model(preferred: list[str]) -> str | None:
+                for alias in preferred:
+                    for name in available:
+                        if name == alias or name.startswith(alias + ":") or name.startswith(alias + "-") or alias in name:
+                            return name
+                return None
+
             # Prefer phi3:mini for speed
-            for fast in ["phi3:mini", "phi3", "phi3:3.8b"]:
-                if any(fast in a for a in available):
-                    print(f"[LLM] Using fast model: {fast}")
-                    self._model = fast
-                    return fast
+            fast_match = _match_model(["phi3:mini", "phi3", "phi3:3.8b"])
+            if fast_match:
+                print(f"[LLM] Using fast model: {fast_match}")
+                self._model = fast_match
+                return fast_match
+
             # Fallback to qwen
-            for main in ["qwen2.5:7b", "qwen2.5", "qwen"]:
-                if any(main in a for a in available):
-                    print(f"[LLM] Using model: {main}")
-                    self._model = main
-                    return main
+            main_match = _match_model(["qwen2.5:7b", "qwen2.5", "qwen"])
+            if main_match:
+                print(f"[LLM] Using model: {main_match}")
+                self._model = main_match
+                return main_match
         except Exception:
             pass
         self._model = MAIN_MODEL
