@@ -189,7 +189,7 @@ hr.d{border:none;border-top:1px solid #150000;margin:6px 0}
     <div class="srow"><span class="sk">LATENCY</span><span class="sv" id="s-lat">—</span></div>
     <div class="srow"><span class="sk">TURNS</span>  <span class="sv" id="s-turns">0</span></div>
     <div class="srow"><span class="sk">INTENT</span> <span class="sv" id="s-intent">—</span></div>
-    <div class="srow"><span class="sk">MODEL</span>  <span class="sv">QWEN2.5</span></div>
+    <div class="srow"><span class="sk">MODEL</span>  <span class="sv" id="s-model">QWEN2.5</span></div>
     <div class="srow"><span class="sk">VOICE</span>  <span class="sv">EN-US AVA</span></div>
   </div>
 
@@ -385,6 +385,7 @@ function setState(s){
 function updateAI(d){
   if(d.latency_ms)document.getElementById('s-lat').textContent=d.latency_ms+'ms';
   if(d.intent)    document.getElementById('s-intent').textContent=d.intent;
+  if(d.model)     document.getElementById('s-model').textContent = d.model;
 }
 
 // Sidebar shortcuts
