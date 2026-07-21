@@ -1,83 +1,103 @@
 """
-Nano MCP Tool Server  —  server.py
-=====================================
-Add this file to your nano folder.
-Run:  python server.py
+Nano MCP tool server
+====================
 
-Exposes tools via MCP on port 8001.
-agent_nano.py calls these tools automatically.
-
-Install MCP first:  pip install mcp[cli]
+This file exposes a set of simple Windows helper tools.
+The tools are available over MCP and can be used by the Nano assistant.
 """
 
-import asyncio, datetime, os, platform, re, subprocess, sys, webbrowser
+import asyncio
+import datetime
+import os
+import platform
+import subprocess
+import sys
+import webbrowser
 from pathlib import Path
 
 try:
     from mcp.server.fastmcp import FastMCP
 except ImportError:
-    print("Install MCP first:  pip install mcp[cli]")
-    exit(1)
+    print("Install MCP first: pip install mcp[cli]")
+    sys.exit(1)
 
 mcp = FastMCP(
     name="nano",
-    instructions="You are Nano, a powerful AI desktop assistant for Windows. Always reply in English."
+    instructions="You are Nano, a friendly AI assistant for Windows. Always reply in English."
 )
 
-# ── SYSTEM ────────────────────────────────────────────────────────────────────
+
+def _run_powershell(command: str, timeout: int = 60) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["powershell", "-NoProfile", "-Command", command],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        encoding="utf-8",
+        errors="replace",
+    )
+
 
 @mcp.tool()
 def get_current_time() -> str:
-    """Get the current date and time."""
+    """Return the current date and time."""
     return datetime.datetime.now().strftime("%I:%M %p, %A %B %d %Y")
+
 
 @mcp.tool()
 def get_system_info() -> str:
-    """Get CPU, RAM, disk, and OS info."""
+    """Return basic system stats for CPU, memory, disk, and uptime."""
     try:
         import psutil
-        cpu  = psutil.cpu_percent(interval=0.5)
-        ram  = psutil.virtual_memory()
+        cpu = psutil.cpu_percent(interval=0.5)
+        ram = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
         boot = datetime.datetime.fromtimestamp(psutil.boot_time())
-        up   = str(datetime.datetime.now() - boot).split(".")[0]
-        return (f"OS: {platform.system()} {platform.release()}\n"
-                f"CPU: {cpu}%\n"
-                f"RAM: {ram.used/1e9:.1f}GB / {ram.total/1e9:.1f}GB ({ram.percent}%)\n"
-                f"Disk: {disk.used/1e9:.1f}GB / {disk.total/1e9:.1f}GB\n"
-                f"Uptime: {up}")
+        uptime = str(datetime.datetime.now() - boot).split(".")[0]
+        return (
+            f"OS: {platform.system()} {platform.release()}\n"
+            f"CPU: {cpu}%\n"
+            f"RAM: {ram.used / 1e9:.1f}GB / {ram.total / 1e9:.1f}GB ({ram.percent}%)\n"
+            f"Disk: {disk.used / 1e9:.1f}GB / {disk.total / 1e9:.1f}GB\n"
+            f"Uptime: {uptime}"
+        )
     except ImportError:
-        r = subprocess.run(["systeminfo"], capture_output=True, text=True, timeout=15)
-        lines = [l for l in r.stdout.splitlines() if any(k in l for k in ["OS","RAM","Memory"])]
+        result = _run_powershell("systeminfo")
+        lines = [line for line in result.stdout.splitlines() if any(key in line for key in ["OS", "RAM", "Memory"])]
         return "\n".join(lines[:6])
+
 
 @mcp.tool()
 def type_text(text: str) -> str:
-    """Type text into whichever window is currently active."""
+    """Type the given text into the currently active window."""
     try:
         import pyautogui
         import time
         time.sleep(1)
         pyautogui.write(text, interval=0.05)
-        return f"Typed text successfully."
+        return "Text typed successfully."
     except ImportError:
         return "pyautogui is not installed. Install it with: pip install pyautogui"
-    except Exception as e:
-        return f"Could not type text: {e}"
+    except Exception as exc:
+        return f"Could not type text: {exc}"
+
 
 @mcp.tool()
 def get_weather(city: str = "Pune") -> str:
-    """Fetch the current weather for a city from wttr.in."""
-    import httpx
+    """Fetch current weather for a city without using an API key."""
     try:
+        import httpx
         response = httpx.get(f"https://wttr.in/{city}?format=3", timeout=5.0)
         return response.text.strip()
-    except Exception as e:
-        return f"Could not get weather: {e}"
+    except ImportError:
+        return "httpx is not installed. Install it with: pip install httpx"
+    except Exception as exc:
+        return f"Could not get weather: {exc}"
+
 
 @mcp.tool()
 def set_volume(level: int) -> str:
-    """Set the system volume to a value between 0 and 100."""
+    """Set the system volume between 0 and 100."""
     volume_level = max(0, min(100, level))
     try:
         subprocess.run(["nircmd", "setsysvolume", str(int(volume_level * 655.35))], capture_output=True)
@@ -85,53 +105,70 @@ def set_volume(level: int) -> str:
     except Exception:
         return "Unable to set volume. Install nircmd: https://www.nirsoft.net/utils/nircmd.html"
 
+
 @mcp.tool()
 def take_screenshot() -> str:
-    """Capture the screen and save the image to the Desktop."""
+    """Take a screenshot and save it to the Desktop."""
     try:
         import mss
         from PIL import Image
         from datetime import datetime
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = os.path.expanduser(f"~/Desktop/screenshot_{timestamp}.png")
         with mss.mss() as sct:
             raw = sct.grab(sct.monitors[1])
-            img = Image.frombytes('RGB', raw.size, raw.bgra, 'raw', 'BGRX')
+            img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
             img.save(path)
         os.startfile(os.path.dirname(path))
         return f"Screenshot saved to Desktop: {path}"
     except ImportError:
         return "Missing dependency: install mss and pillow with pip install mss pillow"
-    except Exception as e:
-        return f"Could not take screenshot: {e}"
+    except Exception as exc:
+        return f"Could not take screenshot: {exc}"
+
 
 @mcp.tool()
 def get_clipboard() -> str:
-    """Return the current Windows clipboard contents."""
+    """Read the current contents of the Windows clipboard."""
     try:
-        result = subprocess.run(
-            ["powershell", "-command", "Get-Clipboard"],
-            capture_output=True, text=True
-        )
+        result = _run_powershell("Get-Clipboard")
         text = result.stdout.strip()
-        return text if text else "Clipboard is empty."
-    except Exception as e:
-        return f"Could not read clipboard: {e}"
+        return text or "Clipboard is empty."
+    except Exception as exc:
+        return f"Could not read clipboard: {exc}"
+
 
 @mcp.tool()
 def set_clipboard(text: str) -> str:
-    """Copy the given text into the Windows clipboard."""
+    """Copy text into the Windows clipboard."""
     try:
-        subprocess.run(
-            ["powershell", "-command", f"Set-Clipboard -Value '{text.replace("'", "''")}'"],
-            capture_output=True, text=True
-        )
+        safe_text = text.replace("'", "''")
+        _run_powershell(f"Set-Clipboard -Value '{safe_text}'")
         return f"Copied to clipboard: {text[:50]}"
-    except Exception as e:
-        return f"Could not set clipboard: {e}"
+    except Exception as exc:
+        return f"Could not set clipboard: {exc}"
+
 
 @mcp.tool()
 def run_command(command: str) -> str:
+    """Run a PowerShell command and return the result."""
+    blocked = ["format c:", "rm -rf /", "shutdown /r /t 0", "reg delete hklm\\sam"]
+    if any(term in command.lower() for term in blocked):
+        return f"Blocked dangerous command: {command}"
+    print(f"[CMD] {command}")
+    try:
+        result = _run_powershell(command, timeout=60)
+        output = (result.stdout or result.stderr).strip()
+        if not output:
+            return f"Done: {command}"
+        lines = output.splitlines()
+        if len(lines) > 40:
+            output = "\n".join(lines[:40]) + f"\n... ({len(lines) - 40} more)"
+        return output
+    except subprocess.TimeoutExpired:
+        return "Command timed out after 60 seconds."
+    except Exception as exc:
+        return f"Error: {exc}"
     """Run any Windows PowerShell command and return real output."""
     BLOCKED = ["format c:","rm -rf /","shutdown /r /t 0","reg delete hklm\\sam"]
     if any(b in command.lower() for b in BLOCKED):

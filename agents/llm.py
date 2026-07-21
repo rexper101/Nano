@@ -1,28 +1,22 @@
 """
-LLM Client — Fast Mode
-========================
-Uses phi3:mini for instant responses (2-3x faster than qwen2.5:7b).
-Falls back to qwen2.5:7b if phi3:mini not available.
+Nano LLM client
+===============
 
-To pull phi3:mini (one time):
-    ollama pull phi3:mini
+Talks to Ollama and chooses a local model automatically.
+It prefers a fast model when available and keeps a short history
+window so the assistant remembers the conversation.
 """
 
 import httpx
 
-
 OLLAMA_URL = "http://localhost:11434/api/chat"
-
-# Use the exact model names reported by `ollama list`
-# phi3:mini = ~150ms response, great for commands and chat
-# qwen2.5:7b = ~800ms, better for complex reasoning
-FAST_MODEL = "phi3:mini"
-MAIN_MODEL = "qwen2.5:7b"
+DEFAULT_FAST_MODEL = "phi3:mini"
+DEFAULT_MAIN_MODEL = "qwen2.5:7b"
 
 ENGLISH_RULE = (
-    "IMPORTANT: Always reply in English only. "
-    "Never use Hindi, Japanese, or any other language. "
-    "Keep replies short — under 3 sentences."
+    "Always reply in English. "
+    "Do not use Hindi, Japanese, or any other language. "
+    "Keep answers short and easy to read."
 )
 
 

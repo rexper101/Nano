@@ -1,29 +1,19 @@
 """
-Nano TTS — English Female Voice (Python 3.11 compatible)
-=========================================================
-Fixes:
-  - No pydub (audioop broken in Python 3.11+)
-  - Uses soundfile or ffmpeg for MP3 decoding
-  - Falls back cleanly to pyttsx3 Windows voice
+Nano TTS helper
+===============
 
-Voice priority:
-  1. edge-tts  en-US-AvaNeural   (warm American female, online)
-  2. edge-tts  en-US-JennyNeural (fallback online)
-  3. pyttsx3   Zira              (Windows built-in, always works)
-
-Install:
-    pip install edge-tts soundfile
+This module uses Edge TTS when available and falls back to the built-in
+Windows speech engine if needed.
 """
 
-import io
-import re
-import wave
 import asyncio
-import tempfile
 import os
-import numpy as np
+import re
+import tempfile
+import wave
 from pathlib import Path
 
+import numpy as np
 
 ENGLISH_VOICES = [
     "en-US-AvaNeural",
@@ -34,120 +24,109 @@ ENGLISH_VOICES = [
 
 class JapaneseTTSSpeaker:
     def __init__(self):
-        self._voice   = ENGLISH_VOICES[0]
-        self._edge_ok = self._check_edge()
-        if self._edge_ok:
-            print(f"[TTS] Edge TTS ready — {self._voice}")
+        self.voice = ENGLISH_VOICES[0]
+        self.edge_available = self._check_edge_tts()
+        if self.edge_available:
+            print(f"[TTS] Edge TTS ready: {self.voice}")
         else:
-            print("[TTS] Using Windows built-in voice (pyttsx3)")
+            print("[TTS] Edge TTS unavailable. Using Windows built-in voice.")
 
-    def _check_edge(self) -> bool:
+    def _check_edge_tts(self) -> bool:
         try:
-            import edge_tts  # noqa
+            import edge_tts  # noqa: F401
             return True
         except ImportError:
             return False
 
-    # ── Main interface ────────────────────────────────────────────────────
-
     def synthesise(self, text: str) -> tuple:
-        clean = self._clean(text)
-        if not clean:
+        text = self._clean_text(text)
+        if not text:
             return None, 0
 
-        if self._edge_ok:
-            result = self._edge(clean)
-            if result[0] is not None:
-                return result
+        if self.edge_available:
+            audio, rate = self._synthesise_with_edge(text)
+            if audio is not None:
+                return audio, rate
 
-        self._pyttsx3(clean)
+        self._speak_with_pyttsx3(text)
         return None, 0
 
-    # ── Edge TTS ─────────────────────────────────────────────────────────
-
-    def _edge(self, text: str) -> tuple:
+    def _synthesise_with_edge(self, text: str) -> tuple:
         try:
             import edge_tts
 
-            async def _run():
-                com = edge_tts.Communicate(text, voice=self._voice, rate="+0%")
-                buf = b""
-                async for chunk in com.stream():
+            async def stream_audio():
+                comm = edge_tts.Communicate(text, voice=self.voice, rate="+0%")
+                buffer = b""
+                async for chunk in comm.stream():
                     if chunk["type"] == "audio":
-                        buf += chunk["data"]
-                return buf
+                        buffer += chunk["data"]
+                return buffer
 
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                mp3 = loop.run_until_complete(_run())
+                raw_mp3 = loop.run_until_complete(stream_audio())
             finally:
                 loop.close()
 
-            if not mp3:
+            if not raw_mp3:
                 return None, 0
 
-            return self._decode_mp3(mp3)
-
-        except Exception as e:
-            print(f"[TTS] Edge TTS error: {e}")
+            return self._decode_mp3(raw_mp3)
+        except Exception as exc:
+            print(f"[TTS] Edge TTS error: {exc}")
             return None, 0
 
     def _decode_mp3(self, mp3_bytes: bytes) -> tuple:
-        """Decode MP3 bytes to a float32 numpy array using ffmpeg when available."""
         try:
             import subprocess
-            tmp_mp3 = tempfile.mktemp(suffix=".mp3")
-            tmp_wav = tempfile.mktemp(suffix=".wav")
-            with open(tmp_mp3, "wb") as f:
-                f.write(mp3_bytes)
+            temp_mp3 = tempfile.mktemp(suffix=".mp3")
+            temp_wav = tempfile.mktemp(suffix=".wav")
+            with open(temp_mp3, "wb") as file:
+                file.write(mp3_bytes)
             subprocess.run(
-                ["ffmpeg", "-y", "-i", tmp_mp3, "-ar", "22050", "-ac", "1", tmp_wav],
+                ["ffmpeg", "-y", "-i", temp_mp3, "-ar", "22050", "-ac", "1", temp_wav],
                 capture_output=True,
                 timeout=10,
             )
-            if os.path.exists(tmp_wav):
-                with wave.open(tmp_wav, "rb") as wf:
+            if os.path.exists(temp_wav):
+                with wave.open(temp_wav, "rb") as wf:
                     rate = wf.getframerate()
                     frames = wf.readframes(wf.getnframes())
-                os.unlink(tmp_mp3)
-                os.unlink(tmp_wav)
+                os.unlink(temp_mp3)
+                os.unlink(temp_wav)
                 audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
                 return audio, rate
         except Exception:
             pass
 
-        print("[TTS] MP3 decode failed — falling back to pyttsx3")
+        print("[TTS] MP3 decoding failed. Falling back to pyttsx3.")
         return None, 0
 
-    # ── pyttsx3 fallback ─────────────────────────────────────────────────
-
-    def _pyttsx3(self, text: str):
+    def _speak_with_pyttsx3(self, text: str):
         try:
             import pyttsx3
             engine = pyttsx3.init()
             voices = engine.getProperty("voices")
-            for v in voices:
-                if any(x in v.name.lower() for x in ["zira","hazel","female","eva"]):
-                    engine.setProperty("voice", v.id)
+            for voice in voices:
+                name = voice.name.lower()
+                if any(keyword in name for keyword in ["zira", "hazel", "female", "eva"]):
+                    engine.setProperty("voice", voice.id)
                     break
-            engine.setProperty("rate",   165)
+            engine.setProperty("rate", 165)
             engine.setProperty("volume", 1.0)
-            # Do NOT set pitch — not supported on Windows SAPI5
             engine.say(text)
             engine.runAndWait()
-        except Exception as e:
-            print(f"[TTS] pyttsx3 error: {e}")
+        except Exception as exc:
+            print(f"[TTS] pyttsx3 error: {exc}")
 
-    # ── Text cleaning ─────────────────────────────────────────────────────
-
-    def _clean(self, text: str) -> str:
-        text = re.sub(r"\[.*?\]",        "",        text)
-        text = re.sub(r"\*\*?(.*?)\*\*?",r"\1",     text)
-        text = re.sub(r"`[^`]+`",        "",        text)
-        text = re.sub(r"https?://\S+",   "the link",text)
-        text = re.sub(r"<[^>]+>",        "",        text)
-        text = re.sub(r"⚡.*",            "",        text)  # remove action result
-        text = re.sub(r"\s+",            " ",       text).strip()
+    def _clean_text(self, text: str) -> str:
+        text = re.sub(r"\[.*?\]", "", text)
+        text = re.sub(r"\*\*?(.*?)\*\*?", r"\1", text)
+        text = re.sub(r"`[^`]+`", "", text)
+        text = re.sub(r"https?://\S+", "the link", text)
+        text = re.sub(r"<[^>]+>", "", text)
+        text = re.sub(r"⚡.*", "", text)
+        text = re.sub(r"\s+", " ", text).strip()
         return text if len(text) > 2 else ""
-    
