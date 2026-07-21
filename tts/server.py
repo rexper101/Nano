@@ -52,6 +52,82 @@ def get_system_info() -> str:
         return "\n".join(lines[:6])
 
 @mcp.tool()
+def type_text(text: str) -> str:
+    """Type text into any active window using pyautogui."""
+    try:
+        import pyautogui, time
+        time.sleep(1)
+        pyautogui.write(text, interval=0.05)
+        return f"Typed: {text}"
+    except Exception as e:
+        return f"Could not type text: {e}"
+
+@mcp.tool()
+def get_weather(city: str = "Pune") -> str:
+    """Get current weather for any city."""
+    import httpx
+    try:
+        r = httpx.get(
+            f"https://wttr.in/{city}?format=3",
+            timeout=5.0
+        )
+        return r.text.strip()
+    except Exception as e:
+        return f"Could not get weather: {e}"
+
+@mcp.tool()
+def set_volume(level: int) -> str:
+    """Set system volume (0-100)."""
+    level = max(0, min(100, level))
+    try:
+        subprocess.run(["nircmd", "setsysvolume", str(int(level * 655.35))],
+                       capture_output=True)
+        return f"Volume set to {level}%"
+    except Exception:
+        return "Install nircmd for volume control: https://www.nirsoft.net/utils/nircmd.html"
+
+@mcp.tool()
+def take_screenshot() -> str:
+    """Take a screenshot and save it to Desktop."""
+    try:
+        import mss
+        from PIL import Image
+        from datetime import datetime
+        path = os.path.expanduser(f"~/Desktop/screenshot_{datetime.now().strftime('%H%M%S')}.png")
+        with mss.mss() as sct:
+            raw = sct.grab(sct.monitors[1])
+            img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
+            img.save(path)
+        os.startfile(os.path.dirname(path))
+        return f"Screenshot saved: {path}"
+    except Exception as e:
+        return f"Could not take screenshot: {e}"
+
+@mcp.tool()
+def get_clipboard() -> str:
+    """Read the current clipboard content."""
+    try:
+        r = subprocess.run(
+            ["powershell", "-command", "Get-Clipboard"],
+            capture_output=True, text=True,
+        )
+        return r.stdout.strip() or "Clipboard is empty."
+    except Exception as e:
+        return f"Could not read clipboard: {e}"
+
+@mcp.tool()
+def set_clipboard(text: str) -> str:
+    """Copy text to clipboard."""
+    try:
+        subprocess.run(
+            ["powershell", "-command", f"Set-Clipboard '{text}'"],
+            capture_output=True, text=True,
+        )
+        return f"Copied to clipboard: {text[:50]}"
+    except Exception as e:
+        return f"Could not set clipboard: {e}"
+
+@mcp.tool()
 def run_command(command: str) -> str:
     """Run any Windows PowerShell command and return real output."""
     BLOCKED = ["format c:","rm -rf /","shutdown /r /t 0","reg delete hklm\\sam"]
