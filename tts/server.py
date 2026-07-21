@@ -53,75 +53,78 @@ def get_system_info() -> str:
 
 @mcp.tool()
 def type_text(text: str) -> str:
-    """Type text into any active window using pyautogui."""
+    """Type text into whichever window is currently active."""
     try:
-        import pyautogui, time
+        import pyautogui
+        import time
         time.sleep(1)
         pyautogui.write(text, interval=0.05)
-        return f"Typed: {text}"
+        return f"Typed text successfully."
+    except ImportError:
+        return "pyautogui is not installed. Install it with: pip install pyautogui"
     except Exception as e:
         return f"Could not type text: {e}"
 
 @mcp.tool()
 def get_weather(city: str = "Pune") -> str:
-    """Get current weather for any city."""
+    """Fetch the current weather for a city from wttr.in."""
     import httpx
     try:
-        r = httpx.get(
-            f"https://wttr.in/{city}?format=3",
-            timeout=5.0
-        )
-        return r.text.strip()
+        response = httpx.get(f"https://wttr.in/{city}?format=3", timeout=5.0)
+        return response.text.strip()
     except Exception as e:
         return f"Could not get weather: {e}"
 
 @mcp.tool()
 def set_volume(level: int) -> str:
-    """Set system volume (0-100)."""
-    level = max(0, min(100, level))
+    """Set the system volume to a value between 0 and 100."""
+    volume_level = max(0, min(100, level))
     try:
-        subprocess.run(["nircmd", "setsysvolume", str(int(level * 655.35))],
-                       capture_output=True)
-        return f"Volume set to {level}%"
+        subprocess.run(["nircmd", "setsysvolume", str(int(volume_level * 655.35))], capture_output=True)
+        return f"Volume set to {volume_level}%"
     except Exception:
-        return "Install nircmd for volume control: https://www.nirsoft.net/utils/nircmd.html"
+        return "Unable to set volume. Install nircmd: https://www.nirsoft.net/utils/nircmd.html"
 
 @mcp.tool()
 def take_screenshot() -> str:
-    """Take a screenshot and save it to Desktop."""
+    """Capture the screen and save the image to the Desktop."""
     try:
         import mss
         from PIL import Image
         from datetime import datetime
-        path = os.path.expanduser(f"~/Desktop/screenshot_{datetime.now().strftime('%H%M%S')}.png")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        path = os.path.expanduser(f"~/Desktop/screenshot_{timestamp}.png")
         with mss.mss() as sct:
             raw = sct.grab(sct.monitors[1])
-            img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
+            img = Image.frombytes('RGB', raw.size, raw.bgra, 'raw', 'BGRX')
             img.save(path)
         os.startfile(os.path.dirname(path))
-        return f"Screenshot saved: {path}"
+        return f"Screenshot saved to Desktop: {path}"
+    except ImportError:
+        return "Missing dependency: install mss and pillow with pip install mss pillow"
     except Exception as e:
         return f"Could not take screenshot: {e}"
 
 @mcp.tool()
 def get_clipboard() -> str:
-    """Read the current clipboard content."""
+    """Return the current Windows clipboard contents."""
     try:
-        r = subprocess.run(
+        result = subprocess.run(
             ["powershell", "-command", "Get-Clipboard"],
-            capture_output=True, text=True,
+            capture_output=True, text=True
         )
-        return r.stdout.strip() or "Clipboard is empty."
+        text = result.stdout.strip()
+        return text if text else "Clipboard is empty."
     except Exception as e:
         return f"Could not read clipboard: {e}"
 
 @mcp.tool()
 def set_clipboard(text: str) -> str:
-    """Copy text to clipboard."""
+    """Copy the given text into the Windows clipboard."""
     try:
         subprocess.run(
-            ["powershell", "-command", f"Set-Clipboard '{text}'"],
-            capture_output=True, text=True,
+            ["powershell", "-command", f"Set-Clipboard -Value '{text.replace("'", "''")}'"],
+            capture_output=True, text=True
         )
         return f"Copied to clipboard: {text[:50]}"
     except Exception as e:

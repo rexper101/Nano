@@ -68,7 +68,7 @@ class LLMClient:
         model    = self._get_model()
         messages = [{"role": "system", "content": self.system_prompt}]
 
-        for msg in history[-20:]:   # wider history retains more context
+        for msg in history[-20:]:   # keep more recent messages for better context
             if isinstance(msg, dict):
                 messages.append({"role": msg["role"], "content": msg["content"]})
             else:
