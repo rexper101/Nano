@@ -58,4 +58,40 @@ class LLMClient:
         self._model = MAIN_MODEL
         return self._model
 
-  
+    def chat(self, user_text: str, history: list) -> str:
+        model    = self._get_model()
+        messages = [{"role": "system", "content": self.system_prompt}]
+
+        for msg in history[-20:]:   # keep more recent messages for better context
+            if isinstance(msg, dict):
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            else:
+                messages.append({"role": msg.role, "content": msg.content})
+
+        messages.append({"role": "user", "content": user_text})
+
+        try:
+            resp = httpx.post(
+                OLLAMA_URL,
+                json={
+                    "model":   model,
+                    "messages": messages,
+                    "stream":  False,
+                    "options": {
+                        "temperature":   0.7,
+                        "num_predict":   200,   # shorter = faster
+                        "num_ctx":       2048,  # smaller context = faster
+                        "repeat_penalty":1.1,
+                    },
+                },
+                timeout=45.0,
+            )
+            resp.raise_for_status()
+            return resp.json()["message"]["content"].strip()
+
+        except httpx.ConnectError:
+            return "Ollama is not running. Start it with: ollama serve"
+        except httpx.TimeoutException:
+            return "Response timed out. Try a simpler question."
+        except Exception as e:
+            return f"Error: {e}"
