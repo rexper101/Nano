@@ -125,3 +125,30 @@ CERTIFICATIONS:
 
         except Exception as e:
             return f"CV update failed: {e}"
+
+    def _export_cv(self) -> str:
+        cv_text = self._load_cv()
+        self._save_docx(cv_text)
+        path = CV_DIR / "cv_export.docx"
+        # Open the file
+        try:
+            os.startfile(str(path))
+        except Exception:
+            pass
+        return f"CV exported to {path}"
+
+    def _save_docx(self, text: str):
+        try:
+            from docx import Document
+            doc  = Document()
+            doc.add_heading("Curriculum Vitae", 0)
+            for line in text.split("\n"):
+                if line.strip():
+                    if line.isupper() or line.endswith(":"):
+                        doc.add_heading(line, level=2)
+                    else:
+                        doc.add_paragraph(line)
+            path = CV_DIR / "cv_export.docx"
+            doc.save(str(path))
+        except ImportError:
+            pass  # python-docx not installed, skip
