@@ -89,6 +89,8 @@ class NanoAgent:
             print("  Type your command (Ctrl+C to quit)\n")
             self._text_loop()
         else:
+
+        try:
             from stt.vad import VADDetector
             self.vad = VADDetector(
                 on_speech_start=lambda: None,
@@ -96,11 +98,15 @@ class NanoAgent:
                 sensitivity=0.4,
             )
             self._set_state("listening")
-            threading.Thread(target=self.vad.start,           daemon=True).start()
+            threading.Thread(target=self.vad.start, daemon=True).start()
             threading.Thread(target=self._transcription_loop, daemon=True).start()
             print("  Speak to Nano!\n")
             while True:
                 time.sleep(1)
+        except Exception as e:
+            print(f"  Mic error: {e} — switching to text mode")
+            self._text_loop()
+            return
 
     # ── Audio pipeline ────────────────────────────────────────────────────────
 
