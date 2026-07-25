@@ -92,6 +92,9 @@ class LLMClient:
         except httpx.ConnectError:
             return "Ollama is not running. Start it with: ollama serve"
         except httpx.TimeoutException:
-            return "Response timed out. Try a simpler question."
+            if attempt == 2:
+                return "Ollama timed out. Try a shorter question."
+            time.sleep(1)
         except Exception as e:
-            return f"Error: {e}"
+            return f"Ollama error: {e}"
+    return "Failed after 3 attempts"
