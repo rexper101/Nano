@@ -463,7 +463,8 @@ class NanoAgent:
                 agent._ws_clients.discard(ws)
 
         uvicorn.run(api, host="0.0.0.0", port=API_PORT,
-                    log_level="warning", ws_ping_interval=20)
+                    log_level="warning", ws_ping_interval=30,
+                    ws_ping_timeout=60, out_keep_alive=65, )
 
     def _broadcast(self, msg: dict):
         dead = set()
