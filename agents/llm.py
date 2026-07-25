@@ -84,7 +84,7 @@ class LLMClient:
                         "repeat_penalty":1.1,
                     },
                 },
-                timeout=45.0,
+                timeout=90.0,
             )
             resp.raise_for_status()
             return resp.json()["message"]["content"].strip()
