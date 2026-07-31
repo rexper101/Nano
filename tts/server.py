@@ -373,3 +373,34 @@ def recall(topic: str = "") -> str:
     if not lines: return "No memories yet."
     if topic: lines = [l for l in lines if topic.lower() in l.lower()]
     return "Memories:\n" + "\n".join(f"• {l}" for l in lines[-15:])
+
+@mcp.tool()
+def forget_all() -> str:
+    """Clear all memories."""
+    MEM.write_text("", encoding="utf-8")
+    return "Memory cleared."
+
+# ── PROMPTS ───────────────────────────────────────────────────────────────────
+
+@mcp.prompt()
+def explain_code(code: str) -> str:
+    return f"Explain this code in simple English:\n\n```\n{code}\n```"
+
+@mcp.prompt()
+def fix_code(code: str, error: str) -> str:
+    return f"Fix this code:\n```\n{code}\n```\nError: {error}"
+
+@mcp.prompt()
+def summarize(text: str) -> str:
+    return f"Summarize in 3 bullet points:\n\n{text}"
+
+# ── RUN ───────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    transport = sys.argv[1] if len(sys.argv) > 1 else "sse"
+    print(f"\n[Nano MCP] Starting tool server on port 8001 ({transport})...")
+    print("[Nano MCP] Tools: system, web, files, code, memory\n")
+    if transport == "sse":
+        mcp.run(transport="sse", host="0.0.0.0", port=8001)
+    else:
+        mcp.run(transport="stdio")
