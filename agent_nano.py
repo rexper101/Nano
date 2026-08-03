@@ -24,6 +24,22 @@ import sounddevice as sd
 from queue import Queue
 from pathlib import Path
 
+
+def _check_deps():
+    missing = []
+    for pkg in ["httpx", "fastapi", "uvicorn", "sounddevice", "numpy", "edge_tts"]:
+        try:
+            __import__(pkg)
+        except ImportError:
+            missing.append(pkg.replace("_", "-"))
+    if missing:
+        print(f"\n[ERROR] Missing packages: {', '.join(missing)}")
+        print(f"Fix: pip install {' '.join(missing)}\n")
+        sys.exit(1)
+
+
+_check_deps()
+
 OLLAMA_URL = "http://localhost:11434/api/chat"
 API_PORT   = 8000
 MODEL      = "phi3:mini"   # fast — change to qwen2.5:7b for harder tasks
@@ -38,12 +54,13 @@ When a tool runs, briefly say what you did. Address the user as Anike."""
 class NanoAgent:
 
     def __init__(self, text_mode=False, no_avatar=False):
-        self.text_mode   = text_mode
-        self.no_avatar   = no_avatar
-        self.history     = []
-        self.audio_queue = Queue()
-        self.avatar      = None
-        self._ws_clients = set()
+        self.text_mode      = text_mode
+        self.no_avatar      = no_avatar
+        self._history_file  = Path("data/memory/conversation_history.json")
+        self.history        = self._load_history()
+        self.audio_queue    = Queue()
+        self.avatar         = None
+        self._ws_clients    = set()
         self._banner()
 
     # ── Start ─────────────────────────────────────────────────────────────────
@@ -89,24 +106,23 @@ class NanoAgent:
             print("  Type your command (Ctrl+C to quit)\n")
             self._text_loop()
         else:
-
-        try:
-            from stt.vad import VADDetector
-            self.vad = VADDetector(
-                on_speech_start=lambda: None,
-                on_speech_end=self._on_audio,
-                sensitivity=0.4,
-            )
-            self._set_state("listening")
-            threading.Thread(target=self.vad.start, daemon=True).start()
-            threading.Thread(target=self._transcription_loop, daemon=True).start()
-            print("  Speak to Nano!\n")
-            while True:
-                time.sleep(1)
-        except Exception as e:
-            print(f"  Mic error: {e} — switching to text mode")
-            self._text_loop()
-            return
+            try:
+                from stt.vad import VADDetector
+                self.vad = VADDetector(
+                    on_speech_start=lambda: None,
+                    on_speech_end=self._on_audio,
+                    sensitivity=0.4,
+                )
+                self._set_state("listening")
+                threading.Thread(target=self.vad.start, daemon=True).start()
+                threading.Thread(target=self._transcription_loop, daemon=True).start()
+                print("  Speak to Nano!\n")
+                while True:
+                    time.sleep(1)
+            except Exception as e:
+                print(f"  Mic error: {e} — switching to text mode")
+                self._text_loop()
+                return
 
     # ── Audio pipeline ────────────────────────────────────────────────────────
 
@@ -161,6 +177,7 @@ class NanoAgent:
         self.history.append({"role": "assistant", "content": response})
         if len(self.history) > 16:
             self.history = self.history[-16:]
+        self._save_history()
 
         ms = int((time.time() - t0) * 1000)
         print(f"\033[31mNano : {response}\033[0m  \033[90m[{ms}ms]\033[0m\n")
@@ -364,19 +381,28 @@ class NanoAgent:
     async def _llm(self, text: str) -> str:
         import httpx
         messages = [{"role": "system", "content": self._system}]
-        for msg in self.history[-8:]:
+        for msg in self.history[-20:]:
             messages.append({"role": msg["role"], "content": msg["content"]})
         messages.append({"role": "user", "content": text})
-        try:
-            resp = httpx.post(
-                OLLAMA_URL,
-                json={"model": MODEL, "messages": messages, "stream": False,
-                      "options": {"temperature": 0.7, "num_predict": 200, "num_ctx": 2048}},
-                timeout=45.0,
-            )
-            return resp.json()["message"]["content"].strip()
-        except Exception as e:
-            return f"Ollama error: {e}. Make sure Ollama is running: ollama serve"
+        for attempt in range(3):
+            try:
+                resp = httpx.post(
+                    OLLAMA_URL,
+                    json={"model": MODEL, "messages": messages, "stream": False,
+                          "options": {"temperature": 0.7, "num_predict": 200, "num_ctx": 2048}},
+                    timeout=90.0,
+                )
+                resp.raise_for_status()
+                return resp.json()["message"]["content"].strip()
+            except httpx.ConnectError:
+                return "Cannot connect to Ollama. Run: ollama serve"
+            except httpx.TimeoutException:
+                if attempt == 2:
+                    return "Ollama timed out. Try a shorter question."
+                time.sleep(1)
+            except Exception as e:
+                return f"Ollama error: {e}"
+        return "Failed after 3 attempts."
 
     # ── TTS / Avatar ──────────────────────────────────────────────────────────
 
@@ -435,6 +461,7 @@ class NanoAgent:
             resp = await agent._llm(ctx)
             agent.history.append({"role":"assistant","content":resp})
             if len(agent.history) > 16: agent.history = agent.history[-16:]
+            agent._save_history()
             threading.Thread(target=agent._speak, args=(resp,), daemon=True).start()
             return {"response":resp,"action":tool or "",
                     "intent":agent._intent(text),"emotion":agent._emotion(resp),
@@ -458,6 +485,7 @@ class NanoAgent:
                     resp = await agent._llm(ctx)
                     agent.history.append({"role":"assistant","content":resp})
                     if len(agent.history) > 16: agent.history = agent.history[-16:]
+                    agent._save_history()
                     msg = {"type":"response","response":resp,"action":tool or "",
                            "intent":agent._intent(text),"emotion":agent._emotion(resp),
                            "latency_ms":int((time.time()-t0)*1000)}
@@ -469,8 +497,10 @@ class NanoAgent:
                 agent._ws_clients.discard(ws)
 
         uvicorn.run(api, host="0.0.0.0", port=API_PORT,
-                    log_level="warning", ws_ping_interval=30,
-                    ws_ping_timeout=60, out_keep_alive=65, )
+                    log_level="warning",
+                    ws_ping_interval=30,
+                    ws_ping_timeout=60,
+                    timeout_keep_alive=65)
 
     def _broadcast(self, msg: dict):
         dead = set()
@@ -486,6 +516,24 @@ class NanoAgent:
         self._ws_clients -= dead
 
     # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _load_history(self) -> list:
+        if self._history_file.exists():
+            try:
+                return json.loads(self._history_file.read_text(encoding="utf-8"))[-20:]
+            except Exception:
+                return []
+        return []
+
+    def _save_history(self):
+        try:
+            self._history_file.parent.mkdir(parents=True, exist_ok=True)
+            self._history_file.write_text(
+                json.dumps(self.history[-50:], ensure_ascii=False),
+                encoding="utf-8"
+            )
+        except Exception:
+            pass
 
     def _load_profile(self) -> str:
         p = Path(__file__).parent / "config" / "user_profile.txt"

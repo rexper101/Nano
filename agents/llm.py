@@ -7,11 +7,13 @@ It prefers a fast model when available and keeps a short history
 window so the assistant remembers the conversation.
 """
 
+import time
 import httpx
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 DEFAULT_FAST_MODEL = "phi3:mini"
 DEFAULT_MAIN_MODEL = "qwen2.5:7b"
+FAST_MODEL = "phi3:mini"
 
 ENGLISH_RULE = (
     "Always reply in English. "
@@ -23,7 +25,7 @@ ENGLISH_RULE = (
 class LLMClient:
     def __init__(self, system_prompt: str):
         self.system_prompt = system_prompt + "\n\n" + ENGLISH_RULE
-        self._model        = None   # auto-detected on first call
+        self._model        = None
 
     def _get_model(self) -> str:
         """Pick the fastest available model."""
@@ -41,7 +43,7 @@ class LLMClient:
                 return None
 
             # Prefer phi3:mini for speed
-            fast_match = _match_model(["phi3:mini", "phi3", "phi3:3.8b"])
+            fast_match = _match_model([FAST_MODEL, "phi3", "phi3:3.8b"])
             if fast_match:
                 print(f"[LLM] Using fast model: {fast_match}")
                 self._model = fast_match
@@ -55,7 +57,7 @@ class LLMClient:
                 return main_match
         except Exception:
             pass
-        self._model = MAIN_MODEL
+        self._model = FAST_MODEL
         return self._model
 
     def chat(self, user_text: str, history: list) -> str:
@@ -70,31 +72,32 @@ class LLMClient:
 
         messages.append({"role": "user", "content": user_text})
 
-        try:
-            resp = httpx.post(
-                OLLAMA_URL,
-                json={
-                    "model":   model,
-                    "messages": messages,
-                    "stream":  False,
-                    "options": {
-                        "temperature":   0.7,
-                        "num_predict":   200,   # shorter = faster
-                        "num_ctx":       2048,  # smaller context = faster
-                        "repeat_penalty":1.1,
+        for attempt in range(3):
+            try:
+                resp = httpx.post(
+                    OLLAMA_URL,
+                    json={
+                        "model":   model,
+                        "messages": messages,
+                        "stream":  False,
+                        "options": {
+                            "temperature":   0.7,
+                            "num_predict":   200,   # shorter = faster
+                            "num_ctx":       2048,  # smaller context = faster
+                            "repeat_penalty":1.1,
+                        },
                     },
-                },
-                timeout=90.0,
-            )
-            resp.raise_for_status()
-            return resp.json()["message"]["content"].strip()
+                    timeout=90.0,
+                )
+                resp.raise_for_status()
+                return resp.json()["message"]["content"].strip()
 
-        except httpx.ConnectError:
-            return "Ollama is not running. Start it with: ollama serve"
-        except httpx.TimeoutException:
-            if attempt == 2:
-                return "Ollama timed out. Try a shorter question."
-            time.sleep(1)
-        except Exception as e:
-            return f"Ollama error: {e}"
-    return "Failed after 3 attempts"
+            except httpx.ConnectError:
+                return "Ollama is not running. Start it with: ollama serve"
+            except httpx.TimeoutException:
+                if attempt == 2:
+                    return "Ollama timed out. Try a shorter question."
+                time.sleep(1)
+            except Exception as e:
+                return f"Ollama error: {e}"
+        return "Failed after 3 attempts"
