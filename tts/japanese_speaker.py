@@ -101,7 +101,6 @@ class JapaneseTTSSpeaker:
         except Exception:
             pass
 
-        print("[TTS] MP3 decoding failed. Falling back to pyttsx3.")
         return None, 0
 
     def _speak_with_pyttsx3(self, text: str):

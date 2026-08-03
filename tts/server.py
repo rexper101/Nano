@@ -169,27 +169,20 @@ def run_command(command: str) -> str:
         return "Command timed out after 60 seconds."
     except Exception as exc:
         return f"Error: {exc}"
-    """Run any Windows PowerShell command and return real output."""
-    BLOCKED = ["format c:","rm -rf /","shutdown /r /t 0","reg delete hklm\\sam"]
-    if any(b in command.lower() for b in BLOCKED):
+
+
+@mcp.tool()
+def run_command_background(command: str) -> str:
+    """Run a long command in a new visible window and return immediately."""
+    blocked = ["format c:", "rm -rf /", "shutdown /r /t 0"]
+    if any(term in command.lower() for term in blocked):
         return f"Blocked: {command}"
-    print(f"[CMD] {command}")
-    try:
-        r = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", command],
-            capture_output=True, text=True, timeout=60,
-            encoding="utf-8", errors="replace", cwd=os.path.expanduser("~")
-        )
-        out = (r.stdout or r.stderr or "").strip()
-        if not out: return f"Done: {command}"
-        lines = out.splitlines()
-        if len(lines) > 40:
-            out = "\n".join(lines[:40]) + f"\n... ({len(lines)-40} more)"
-        return out
-    except subprocess.TimeoutExpired:
-        return "Timed out after 60s."
-    except Exception as e:
-        return f"Error: {e}"
+    subprocess.Popen(
+        f'start cmd /k "{command}"',
+        shell=True,
+        cwd=os.path.expanduser("~")
+    )
+    return f"Running in new window: {command}"
 
 @mcp.tool()
 def open_application(app_name: str) -> str:
@@ -252,6 +245,20 @@ def get_news(topic: str = "technology") -> str:
         return "\n".join(lines)
     except Exception as e:
         return f"Error: {e}"
+
+@mcp.tool()
+def get_weather(city: str = "Pune") -> str:
+    """Get current weather for any city. Free, no API key needed."""
+    import httpx
+    try:
+        response = httpx.get(
+            f"https://wttr.in/{city.replace(' ', '+')}?format=3",
+            timeout=6.0,
+            headers={"User-Agent": "Nano-AI/5.0"},
+        )
+        return response.text.strip() or f"No weather data for {city}"
+    except Exception as e:
+        return f"Could not get weather for {city}: {e}"
 
 @mcp.tool()
 def open_url(url: str) -> str:
@@ -356,13 +363,29 @@ def run_python_script(script_path: str) -> str:
 
 MEM = Path("data/memory/nano_memory.txt")
 MEM.parent.mkdir(parents=True, exist_ok=True)
+MAX_MEMORIES = 200
 
 @mcp.tool()
 def remember(fact: str) -> str:
     """Remember a fact for future conversations."""
+    if not fact.strip():
+        return "Nothing to remember."
+
+    existing = []
+    if MEM.exists():
+        existing = MEM.read_text(encoding="utf-8").strip().splitlines()
+        existing = [line for line in existing if line.strip()]
+
+    fact_lower = fact.lower().strip()
+    for line in existing:
+        if fact_lower in line.lower():
+            return f"Already remembered: {fact}"
+
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    with open(MEM, "a", encoding="utf-8") as f:
-        f.write(f"[{ts}] {fact}\n")
+    existing.append(f"[{ts}] {fact}")
+    if len(existing) > MAX_MEMORIES:
+        existing = existing[-MAX_MEMORIES:]
+    MEM.write_text("\n".join(existing) + "\n", encoding="utf-8")
     return f"Remembered: {fact}"
 
 @mcp.tool()
