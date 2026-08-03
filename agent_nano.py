@@ -210,6 +210,13 @@ class NanoAgent:
 
         try:
             import server as tools
+        except ImportError:
+            try:
+                from tts import server as tools
+            except Exception:
+                tools = None
+
+        if tools is not None:
 
             # ── Time ──────────────────────────────────────────────────────
             if any(w in tl for w in ["what time","current time","what's the time",
@@ -306,13 +313,14 @@ class NanoAgent:
             if m:
                 return tools.run_python_script(m.group(1))
 
-        except ImportError:
+        except Exception as e:
+            return f"Tool error: {e}"
+
+        if tools is None:
             # server.py not found — fall back to direct cmd execution
             cmd = self._extract_cmd(tl, text)
             if cmd:
                 return self._run_direct(cmd)
-        except Exception as e:
-            return f"Tool error: {e}"
 
         return ""
 
@@ -543,7 +551,17 @@ class NanoAgent:
 
     def _intent(self, t: str) -> str:
         tl = t.lower()
-        if any(w in tl for w in ["write","create","build","generate","flask","html","code","script"]): return "code"
+        if re.search(r"\b(write|create|build|generate|script|code)\b", tl):
+            if re.search(r"\b(notepad|text file|file|folder|document|program|app)\b", tl):
+                if "notepad" in tl or "text file" in tl or "file" in tl:
+                    if "write my name in notepad" in tl or "create a text file" in tl:
+                        pass
+                    else:
+                        return "code"
+            elif re.search(r"\b(muscle|workout|exercise|diet|health)\b", tl):
+                return "chat"
+            else:
+                return "code"
         if any(w in tl for w in ["run","execute","install","git","ipconfig","pip","cmd"]):             return "cmd"
         if any(w in tl for w in ["open","launch","start","play"]):                                     return "app"
         if any(w in tl for w in ["search","news","what is","who is","look up"]):                       return "search"
