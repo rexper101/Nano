@@ -23,6 +23,7 @@ import numpy as np
 import sounddevice as sd
 from queue import Queue
 from pathlib import Path
+import logging
 
 
 def _check_deps():
@@ -53,9 +54,22 @@ When a tool runs, briefly say what you did. Address the user as Anike."""
 
 class NanoAgent:
 
-    def __init__(self, text_mode=False, no_avatar=False):
+    def __init__(self, text_mode=False, no_avatar=False, model=None, api_port=None, ollama_url=None, debug=False):
         self.text_mode      = text_mode
         self.no_avatar      = no_avatar
+        # allow runtime overrides for model / ports / endpoints
+        if model:
+            globals()['MODEL'] = model
+        if api_port:
+            globals()['API_PORT'] = api_port
+        if ollama_url:
+            globals()['OLLAMA_URL'] = ollama_url
+
+        # logging
+        log_level = logging.DEBUG if debug else logging.INFO
+        logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s: %(message)s")
+        self.logger = logging.getLogger(__name__)
+
         self._history_file  = Path("data/memory/conversation_history.json")
         self.history        = self._load_history()
         self.audio_queue    = Queue()
