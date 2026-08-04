@@ -313,9 +313,6 @@ class NanoAgent:
             if m:
                 return tools.run_python_script(m.group(1))
 
-        except Exception as e:
-            return f"Tool error: {e}"
-
         if tools is None:
             # server.py not found — fall back to direct cmd execution
             cmd = self._extract_cmd(tl, text)
