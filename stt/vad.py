@@ -81,10 +81,22 @@ class VADDetector:
             frames_per_buffer=CHUNK,
         )
         print("[VAD] Microphone open.")
-        while True:
+        self._running = True
+        while getattr(self, "_running", True):
             try:
                 data = stream.read(CHUNK, exception_on_overflow=False)
                 self._audio_callback(data)
             except Exception as e:
                 print(f"[VAD] Error: {e}")
                 break
+
+    def stop(self):
+        """Signal the VAD loop to stop."""
+        try:
+            self._running = False
+            try:
+                self._audio.terminate()
+            except Exception:
+                pass
+        except Exception:
+            pass
