@@ -76,6 +76,11 @@ class NanoAgent:
         self.avatar         = None
         self._ws_clients    = set()
         self._banner()
+        # reduce noisy third-party debug logs
+        for noisy in ["httpcore", "asyncio", "comtypes", "comtypes.client", "pyttsx3"]:
+            logging.getLogger(noisy).setLevel(logging.WARNING)
+
+        self._running = True
 
     # ── Start ─────────────────────────────────────────────────────────────────
 
@@ -131,12 +136,35 @@ class NanoAgent:
                 threading.Thread(target=self.vad.start, daemon=True).start()
                 threading.Thread(target=self._transcription_loop, daemon=True).start()
                 print("  Speak to Nano!\n")
-                while True:
+                while self._running:
                     time.sleep(1)
             except Exception as e:
                 print(f"  Mic error: {e} — switching to text mode")
                 self._text_loop()
                 return
+
+    def stop(self):
+        """Attempt to gracefully shut down audio, avatar and logging."""
+        self._running = False
+        try:
+            if hasattr(self, "vad") and getattr(self.vad, "stop", None):
+                self.vad.stop()
+        except Exception:
+            pass
+        try:
+            if self.avatar and getattr(self.avatar, "root", None):
+                try:
+                    self.avatar.root.quit()
+                    self.avatar.root.destroy()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # flush logging and close handlers
+        try:
+            logging.shutdown()
+        except Exception:
+            pass
 
     # ── Audio pipeline ────────────────────────────────────────────────────────
 
