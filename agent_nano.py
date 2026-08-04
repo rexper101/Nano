@@ -403,6 +403,7 @@ class NanoAgent:
         for msg in self.history[-20:]:
             messages.append({"role": msg["role"], "content": msg["content"]})
         messages.append({"role": "user", "content": text})
+        # Robust request with retries and improved error handling
         for attempt in range(3):
             try:
                 resp = httpx.post(
@@ -412,14 +413,31 @@ class NanoAgent:
                     timeout=90.0,
                 )
                 resp.raise_for_status()
-                return resp.json()["message"]["content"].strip()
+                data = None
+                try:
+                    data = resp.json()
+                except Exception:
+                    text_resp = resp.text.strip()
+                    self.logger.warning("Non-JSON response from Ollama: %s", text_resp[:200])
+                    return text_resp
+                # prefer structured 'message' but fall back gracefully
+                if isinstance(data, dict) and "message" in data and "content" in data["message"]:
+                    return data["message"]["content"].strip()
+                # fallback: find first string field
+                for v in data.values() if isinstance(data, dict) else []:
+                    if isinstance(v, str) and v.strip():
+                        return v.strip()
+                return resp.text.strip()
             except httpx.ConnectError:
+                self.logger.error("Cannot connect to Ollama at %s", OLLAMA_URL)
                 return "Cannot connect to Ollama. Run: ollama serve"
             except httpx.TimeoutException:
+                self.logger.warning("Ollama request timed out (attempt %d)", attempt + 1)
                 if attempt == 2:
                     return "Ollama timed out. Try a shorter question."
                 time.sleep(1)
             except Exception as e:
+                self.logger.exception("Unexpected Ollama error")
                 return f"Ollama error: {e}"
         return "Failed after 3 attempts."
 
@@ -602,6 +620,11 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--text",       action="store_true", help="Text mode, no mic")
     p.add_argument("--no-avatar",  action="store_true", help="No avatar window")
+    p.add_argument("--model",      type=str, help="LLM model name (overrides MODEL)")
+    p.add_argument("--port",       type=int, help="API port (overrides API_PORT)")
+    p.add_argument("--ollama",     type=str, help="Ollama URL (overrides OLLAMA_URL)")
+    p.add_argument("--debug",      action="store_true", help="Enable debug logging")
     args = p.parse_args()
-    agent = NanoAgent(text_mode=args.text, no_avatar=args.no_avatar)
+    agent = NanoAgent(text_mode=args.text, no_avatar=args.no_avatar,
+                      model=args.model, api_port=args.port, ollama_url=args.ollama, debug=args.debug)
     agent.start()
