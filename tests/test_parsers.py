@@ -1,4 +1,9 @@
+import sys
+import os
 import pytest
+
+# Ensure repo root is on path so agent_nano can be imported when pytest runs from tests/
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from agent_nano import NanoAgent
 
