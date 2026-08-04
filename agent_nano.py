@@ -27,6 +27,9 @@ import logging
 
 
 def _check_deps():
+    # Allow tests or CI to skip dependency exit by setting NANO_SKIP_DEPS=1
+    if os.getenv("NANO_SKIP_DEPS"):
+        return
     missing = []
     for pkg in ["httpx", "fastapi", "uvicorn", "sounddevice", "numpy", "edge_tts"]:
         try:
