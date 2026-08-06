@@ -50,52 +50,6 @@ LANGUAGE_MAP = {
 }
 
 
-class CodeTool:
-    def run(self, user_text: str) -> str:
-        """Generate code and save to file. Returns result message."""
-        print(f"\033[35m[Code] Generating code for: {user_text[:60]}\033[0m")
-
-        # Generate the code
-        code = self._generate(user_text)
-        if not code:
-            return "Failed to generate code."
-
-        # Determine filename
-        filename = self._make_filename(user_text, code)
-        filepath = self._save(filename, code)
-
-        # Also open in VS Code if available
-        self._open_in_editor(filepath)
-
-        lines = code.count("\n") + 1
-        return f"Created {filepath} ({lines} lines). Opening in VS Code..."
-
-    def _generate(self, prompt: str) -> str:
-        """Call Ollama with code-focused prompt."""
-        try:
-            resp = httpx.post(
-                OLLAMA_URL,
-                json={
-                    "model": MODEL,
-                    "messages": [
-                        {"role": "system", "content": CODE_SYSTEM},
-                        {"role": "user",   "content": prompt},
-                    ],
-                    "stream": False,
-                    "options": {"temperature": 0.2, "num_predict": 2048},
-                },
-                timeout=120.0,
-            )
-            resp.raise_for_status()
-            raw = resp.json()["message"]["content"].strip()
-            # Strip markdown fences if present
-            raw = re.sub(r"^```\w*\n?", "", raw)
-            raw = re.sub(r"\n?```$", "", raw)
-            return raw.strip()
-        except Exception as e:
-            print(f"[Code] LLM error: {e}")
-            return ""
-
     def _make_filename(self, user_text: str, code: str) -> str:
         """Pick a sensible filename based on the request and code content."""
         text_lower = user_text.lower()
