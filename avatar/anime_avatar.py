@@ -31,17 +31,17 @@ FY   = 155         # face center y
 
 # ── Emotion colour palettes ───────────────────────────────────────────────────
 EMOTIONS = {
-    "idle":      {"aura": "#00e5c8", "hair": "#7c4dff", "eye": "#00e5c8",
+    "idle":      {"aura": "#8c7cfa", "hair": "#111111", "eye": "#6fd6ff",
                   "cheek": "", "label": "IDLE",      "bg": "#05080f"},
-    "listening": {"aura": "#1a8fff", "hair": "#7c4dff", "eye": "#1a8fff",
+    "listening": {"aura": "#66b2ff", "hair": "#111111", "eye": "#85d3ff",
                   "cheek": "", "label": "LISTENING", "bg": "#05080f"},
-    "thinking":  {"aura": "#ffb930", "hair": "#7c4dff", "eye": "#ffb930",
-                  "cheek": "#ff6eb4", "label": "THINKING",  "bg": "#05080f"},
-    "speaking":  {"aura": "#00e5c8", "hair": "#7c4dff", "eye": "#00e5c8",
-                  "cheek": "#ff6eb4", "label": "SPEAKING",  "bg": "#05080f"},
-    "happy":     {"aura": "#00e87a", "hair": "#7c4dff", "eye": "#00e87a",
-                  "cheek": "#ff8fab", "label": "HAPPY",     "bg": "#050f08"},
-    "error":     {"aura": "#ff4050", "hair": "#7c4dff", "eye": "#ff4050",
+    "thinking":  {"aura": "#ff96d4", "hair": "#111111", "eye": "#a0e6ff",
+                  "cheek": "#ff9ec8", "label": "THINKING",  "bg": "#05080f"},
+    "speaking":  {"aura": "#96f0ff", "hair": "#111111", "eye": "#8be2ff",
+                  "cheek": "#ff9ec8", "label": "SPEAKING",  "bg": "#05080f"},
+    "happy":     {"aura": "#9bf4b2", "hair": "#111111", "eye": "#9bf4b2",
+                  "cheek": "#ff9ec8", "label": "HAPPY",     "bg": "#050f08"},
+    "error":     {"aura": "#ff6f8d", "hair": "#111111", "eye": "#ff6f8d",
                   "cheek": "", "label": "ERROR",     "bg": "#0f0508"},
 }
 
@@ -165,7 +165,6 @@ class AnimeAvatarWindow:
         self._draw_hair_back(c, em, fy)
         self._draw_neck_body(c, em, fy)
         self._draw_face(c, em, fy)
-        self._draw_cat_ears(c, em, fy)
         self._draw_eyes(c, em, fy)
         self._draw_nose(c, fy)
         self._draw_mouth(c, em, fy)
@@ -197,37 +196,53 @@ class AnimeAvatarWindow:
     def _draw_hair_back(self, c, em, fy):
         h  = em["hair"]
         hd = em["aura"]
-        bob = self._hair_bob * 3
+        bob = self._hair_bob * 2
 
-        # Long flowing back hair
+        # Long straight back hair
         c.create_polygon(
-            CX - 68, fy - 60,
-            CX - 80, fy + 20 + bob,
-            CX - 72, fy + 90 + bob,
-            CX - 50, fy + 160 + bob,
-            CX - 30, fy + 200 + bob,
-            CX,      fy + 210 + bob,
-            CX + 30, fy + 200 + bob,
-            CX + 50, fy + 160 + bob,
-            CX + 72, fy + 90 + bob,
-            CX + 80, fy + 20 + bob,
-            CX + 68, fy - 60,
-            fill=h, outline=hd, width=0.5, smooth=True,
+            CX - 72, fy - 72,
+            CX - 80, fy + 10 + bob,
+            CX - 70, fy + 120 + bob,
+            CX - 60, fy + 200 + bob,
+            CX - 40, fy + 220 + bob,
+            CX,       fy + 230 + bob,
+            CX + 40, fy + 220 + bob,
+            CX + 60, fy + 200 + bob,
+            CX + 70, fy + 120 + bob,
+            CX + 80, fy + 10 + bob,
+            CX + 72, fy - 72,
+            fill=h, outline=hd, width=0.4, smooth=True,
         )
 
-        # Side hair strands
-        for sx, dir_ in [(-1, 1), (1, -1)]:
-            base_x = CX + sx * 60
-            c.create_polygon(
-                base_x,            fy - 40,
-                base_x + dir_*10,  fy + 40 + bob,
-                base_x + dir_*20,  fy + 120 + bob,
-                base_x + dir_*12,  fy + 180 + bob,
-                base_x + dir_*2,   fy + 180 + bob,
-                base_x - dir_*6,   fy + 100 + bob,
-                base_x - dir_*4,   fy + 20 + bob,
-                fill="#5c35c0", outline=hd, width=0.5, smooth=True,
-            )
+        # Soft hair sides framing face
+        c.create_polygon(
+            CX - 72, fy - 60,
+            CX - 86, fy + 20 + bob,
+            CX - 80, fy + 90 + bob,
+            CX - 64, fy + 170 + bob,
+            CX - 50, fy + 200 + bob,
+            CX - 44, fy + 210 + bob,
+            CX - 42, fy + 220 + bob,
+            CX - 32, fy + 200 + bob,
+            CX - 34, fy + 160 + bob,
+            CX - 42, fy + 100 + bob,
+            CX - 44, fy + 20 + bob,
+            fill=h, outline=hd, width=0.4, smooth=True,
+        )
+        c.create_polygon(
+            CX + 72, fy - 60,
+            CX + 86, fy + 20 + bob,
+            CX + 80, fy + 90 + bob,
+            CX + 64, fy + 170 + bob,
+            CX + 50, fy + 200 + bob,
+            CX + 44, fy + 210 + bob,
+            CX + 42, fy + 220 + bob,
+            CX + 32, fy + 200 + bob,
+            CX + 34, fy + 160 + bob,
+            CX + 42, fy + 100 + bob,
+            CX + 44, fy + 20 + bob,
+            fill=h, outline=hd, width=0.4, smooth=True,
+        )
 
     # ── Neck and body (school uniform) ────────────────────────────────────────
 
@@ -235,29 +250,53 @@ class AnimeAvatarWindow:
         aura = em["aura"]
 
         # Neck
-        c.create_rectangle(CX-10, fy+64, CX+10, fy+90, fill="#f5cba7", outline="")
+        c.create_rectangle(CX-10, fy+64, CX+10, fy+92, fill="#f5cba7", outline="")
 
-        # Shoulders / body
+        # Purple jacket shoulders
         c.create_polygon(
-            CX - 70, fy + 90,
-            CX - 80, fy + 160,
-            CX - 60, fy + 200,
-            CX,      fy + 210,
-            CX + 60, fy + 200,
-            CX + 80, fy + 160,
-            CX + 70, fy + 90,
-            CX + 10, fy + 90,
-            CX,      fy + 100,
-            CX - 10, fy + 90,
-            fill="#1a1f3a", outline=aura, width=0.8, smooth=True,
+            CX - 82, fy + 96,
+            CX - 96, fy + 160,
+            CX - 86, fy + 210,
+            CX - 62, fy + 230,
+            CX - 20, fy + 240,
+            CX + 20, fy + 240,
+            CX + 62, fy + 230,
+            CX + 86, fy + 210,
+            CX + 96, fy + 160,
+            CX + 82, fy + 96,
+            CX + 10, fy + 96,
+            CX,      fy + 106,
+            CX - 10, fy + 96,
+            fill="#4c2f7d", outline=aura, width=1.0, smooth=True,
         )
 
-        # Collar (sailor style)
+        # Jacket lapels
         c.create_polygon(
-            CX - 28, fy + 88,
-            CX,      fy + 120,
-            CX + 28, fy + 88,
-            CX + 22, fy + 82,
+            CX - 38, fy + 98,
+            CX - 22, fy + 170,
+            CX - 10, fy + 186,
+            CX,      fy + 196,
+            fill="#2a153f", outline="", smooth=True,
+        )
+        c.create_polygon(
+            CX + 38, fy + 98,
+            CX + 22, fy + 170,
+            CX + 10, fy + 186,
+            CX,      fy + 196,
+            fill="#2a153f", outline="", smooth=True,
+        )
+
+        # Shirt chest panel
+        c.create_rectangle(CX-24, fy + 108, CX+24, fy + 187,
+                           fill="#140f18", outline="")
+
+        # Mid-button accent
+        c.create_oval(CX-6, fy + 120, CX+6, fy + 128, fill="#9c64d3", outline="")
+
+        # Rose pin accessory
+        c.create_oval(CX + 38, fy + 100, CX + 50, fy + 112, fill="#dd2f5c", outline="")
+        c.create_line(CX + 44, fy + 105, CX + 44, fy + 122, fill="#2a153f", width=2)
+
             CX,      fy + 110,
             CX - 22, fy + 82,
             fill="#0d1124", outline=aura, width=0.8,
@@ -288,37 +327,8 @@ class AnimeAvatarWindow:
     # ── Cat ears ─────────────────────────────────────────────────────────────
 
     def _draw_cat_ears(self, c, em, fy):
-        h    = em["hair"]
-        aura = em["aura"]
-        bob  = self._hair_bob * 4
-
-        # Left ear
-        c.create_polygon(
-            CX - 52, fy - 62,
-            CX - 72, fy - 102 + bob,
-            CX - 32, fy - 80,
-            fill=h, outline=aura, width=1, smooth=True,
-        )
-        c.create_polygon(
-            CX - 52, fy - 65,
-            CX - 66, fy - 96 + bob,
-            CX - 36, fy - 78,
-            fill="#f5b8c8", outline="", smooth=True,
-        )
-
-        # Right ear
-        c.create_polygon(
-            CX + 52, fy - 62,
-            CX + 72, fy - 102 + bob,
-            CX + 32, fy - 80,
-            fill=h, outline=aura, width=1, smooth=True,
-        )
-        c.create_polygon(
-            CX + 52, fy - 65,
-            CX + 66, fy - 96 + bob,
-            CX + 36, fy - 78,
-            fill="#f5b8c8", outline="", smooth=True,
-        )
+        # Robin does not use cat ears — no additional ear art needed.
+        pass
 
     # ── Anime eyes ────────────────────────────────────────────────────────────
 
@@ -434,28 +444,31 @@ class AnimeAvatarWindow:
         hd = em["aura"]
         bob = self._hair_bob * 2
 
-        # Top of head hair
-        c.create_oval(CX-70, fy-80, CX+70, fy-10,
-                      fill=h, outline=hd, width=0.5)
+        # Hair top and part
+        c.create_oval(CX-70, fy-80, CX+70, fy-6,
+                      fill=h, outline=hd, width=0.4)
+        c.create_line(CX, fy-80, CX, fy+8, fill="#1a1a1a", width=5)
 
-        # Left side strand
+        # Left face frame
         c.create_polygon(
-            CX-66, fy-40,
-            CX-76, fy+10+bob,
-            CX-60, fy+50+bob,
-            CX-44, fy+40+bob,
-            CX-50, fy+0,
-            fill="#6030b0", outline=hd, width=0.5, smooth=True,
+            CX - 28, fy - 72,
+            CX - 54, fy - 18 + bob,
+            CX - 40, fy + 24 + bob,
+            CX - 32, fy + 64 + bob,
+            CX - 24, fy + 72 + bob,
+            CX - 18, fy + 46 + bob,
+            fill=h, outline=hd, width=0.4, smooth=True,
         )
 
-        # Right side strand
+        # Right face frame
         c.create_polygon(
-            CX+66, fy-40,
-            CX+76, fy+10+bob,
-            CX+60, fy+50+bob,
-            CX+44, fy+40+bob,
-            CX+50, fy+0,
-            fill="#6030b0", outline=hd, width=0.5, smooth=True,
+            CX + 28, fy - 72,
+            CX + 54, fy - 18 + bob,
+            CX + 40, fy + 24 + bob,
+            CX + 32, fy + 64 + bob,
+            CX + 24, fy + 72 + bob,
+            CX + 18, fy + 46 + bob,
+            fill=h, outline=hd, width=0.4, smooth=True,
         )
 
     # ── Bangs ────────────────────────────────────────────────────────────────
@@ -465,42 +478,38 @@ class AnimeAvatarWindow:
         hd = em["aura"]
         bob = self._hair_bob * 1.5
 
-        # Centre bang
+        # Center part bangs
         c.create_polygon(
-            CX-18, fy-80,
-            CX-20, fy-32+bob,
-            CX-10, fy-24+bob,
-            CX,    fy-30+bob,
-            CX+10, fy-24+bob,
-            CX+20, fy-32+bob,
-            CX+18, fy-80,
-            fill=h, outline=hd, width=0.5, smooth=True,
+            CX - 24, fy - 80,
+            CX - 26, fy - 38 + bob,
+            CX - 16, fy - 22 + bob,
+            CX,      fy - 28 + bob,
+            CX + 16, fy - 22 + bob,
+            CX + 26, fy - 38 + bob,
+            CX + 24, fy - 80,
+            fill=h, outline=hd, width=0.4, smooth=True,
         )
 
-        # Left bang
+        # Soft side fringe
         c.create_polygon(
-            CX-50, fy-76,
-            CX-54, fy-30+bob,
-            CX-40, fy-20+bob,
-            CX-24, fy-26+bob,
-            CX-22, fy-80,
-            fill="#7040d0", outline=hd, width=0.5, smooth=True,
+            CX - 34, fy - 80,
+            CX - 40, fy - 38 + bob,
+            CX - 36, fy - 10 + bob,
+            CX - 26, fy + 12 + bob,
+            fill=h, outline=hd, width=0.4, smooth=True,
         )
-
-        # Right bang
         c.create_polygon(
-            CX+50, fy-76,
-            CX+54, fy-30+bob,
-            CX+40, fy-20+bob,
-            CX+24, fy-26+bob,
-            CX+22, fy-80,
-            fill="#7040d0", outline=hd, width=0.5, smooth=True,
+            CX + 34, fy - 80,
+            CX + 40, fy - 38 + bob,
+            CX + 36, fy - 10 + bob,
+            CX + 26, fy + 12 + bob,
+            fill=h, outline=hd, width=0.4, smooth=True,
         )
 
         # Hair highlight streak
         c.create_line(
-            CX-10, fy-80,  CX-8, fy-50+bob,
-            fill="#c090ff", width=1, smooth=True,
+            CX - 6, fy - 78,  CX - 4, fy - 48 + bob,
+            fill="#4a4a4a", width=1, smooth=True,
         )
 
     # ── Accessories ──────────────────────────────────────────────────────────
@@ -509,15 +518,16 @@ class AnimeAvatarWindow:
         aura = em["aura"]
         bob  = self._hair_bob * 2
 
-        # Hair clip (left side)
-        c.create_rectangle(CX-54, fy-58+bob, CX-44, fy-50+bob,
-                           fill=aura, outline="#ffffff40")
-        c.create_text(CX-49, fy-54+bob, text="✦",
-                      fill="white", font=("Arial", 6))
-
-        # Star on right
-        c.create_text(CX+50, fy-56+bob, text="★",
-                      fill=aura, font=("Arial", 8))
+        # Rose pin on jacket
+        c.create_oval(CX + 34, fy + 98, CX + 48, fy + 110,
+                      fill="#dd2f5c", outline="")
+        c.create_line(CX + 41, fy + 102, CX + 41, fy + 116,
+                      fill="#1a1320", width=2)
+        for angle in [0, 60, 120, 180, 240, 300]:
+            rad = math.radians(angle)
+            x = CX + 42 + 5 * math.cos(rad)
+            y = fy + 104 + 5 * math.sin(rad)
+            c.create_oval(x-3, y-3, x+3, y+3, fill="#f08ab8", outline="")
 
     # ── UI labels ────────────────────────────────────────────────────────────
 
