@@ -297,10 +297,6 @@ class AnimeAvatarWindow:
         c.create_oval(CX + 38, fy + 100, CX + 50, fy + 112, fill="#dd2f5c", outline="")
         c.create_line(CX + 44, fy + 105, CX + 44, fy + 122, fill="#2a153f", width=2)
 
-            CX,      fy + 110,
-            CX - 22, fy + 82,
-            fill="#0d1124", outline=aura, width=0.8,
-        )
         # Collar bow
         c.create_polygon(
             CX - 10, fy + 100,
