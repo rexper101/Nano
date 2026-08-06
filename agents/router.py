@@ -53,5 +53,57 @@ class Router:
                                   "take a screenshot","screenshot","read the error",
                                   "what does my screen say","ocr"]):
             return "screen"
+        # ── APPLICATIONS / COMMANDS / TOOLS ─────────────────────────────
+        if any(w in t for w in ["open ", "launch ", "start ", "play ", "close "]):
+            return "app"
+        if any(w in t for w in ["run ", "execute ", "install ", "pip ", "git ", "command", "cmd"]):
+            return "cmd"
+        if any(w in t for w in ["search ", "find ", "what is ", "who is ", "news", "latest", "look up"]):
+            return "search"
+        if any(w in t for w in ["file", "folder", "document", "read ", "create ", "list files", "open file"]):
+            return "file"
+        if any(w in t for w in ["cv", "resume", "cover letter", "job", "apply", "linkedin"]):
+            return "job"
+        if any(w in t for w in ["email", "gmail", "reply", "inbox", "send email"]):
+            return "message"
 
+        return "chat"
+
+    def process(self, text: str, history: list) -> tuple[str, str]:
+        intent = self._intent(text)
+        action = ""
+
+        try:
+            if intent == "memory":
+                action = "memory"
+                return self.memory.run(text), action
+            if intent == "screen":
+                action = "screen"
+                return self.screen.run(text), action
+            if intent == "app":
+                action = "app"
+                return self.app.run(text), action
+            if intent == "cmd":
+                action = "cmd"
+                return self.cmd.run(text), action
+            if intent == "search":
+                action = "search"
+                return self.search.run(text), action
+            if intent == "file":
+                action = "file"
+                return self.file.run(text), action
+            if intent == "job":
+                action = "job"
+                return self.job.run(text), action
+            if intent == "message":
+                action = "message"
+                return self.msg.run(text), action
+            if intent == "chat":
+                response = self.llm.chat(text, history)
+                return response, action
+        except Exception as exc:
+            return f"Router error: {exc}", action
+
+        response = self.llm.chat(text, history)
+        return response, action
       
