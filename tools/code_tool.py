@@ -70,4 +70,92 @@ class CodeTool:
         lines = code.count("\n") + 1
         return f"Created {filepath} ({lines} lines). Opening in VS Code..."
 
-   
+    def _generate(self, prompt: str) -> str:
+        """Call Ollama with code-focused prompt."""
+        try:
+            resp = httpx.post(
+                OLLAMA_URL,
+                json={
+                    "model": MODEL,
+                    "messages": [
+                        {"role": "system", "content": CODE_SYSTEM},
+                        {"role": "user",   "content": prompt},
+                    ],
+                    "stream": False,
+                    "options": {"temperature": 0.2, "num_predict": 2048},
+                },
+                timeout=120.0,
+            )
+            resp.raise_for_status()
+            raw = resp.json()["message"]["content"].strip()
+            # Strip markdown fences if present
+            raw = re.sub(r"^```\w*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw)
+            return raw.strip()
+        except Exception as e:
+            print(f"[Code] LLM error: {e}")
+            return ""
+
+    def _make_filename(self, user_text: str, code: str) -> str:
+        """Pick a sensible filename based on the request and code content."""
+        text_lower = user_text.lower()
+
+        # Detect language
+        ext = ".py"  # default
+        for lang, language_ext in LANGUAGE_MAP.items():
+            if lang in text_lower:
+                ext = language_ext
+                break
+
+        # Detect class/function name from code for Python
+        if ext == ".py":
+            m = re.search(r"class (\w+)", code)
+            if m:
+                return f"{m.group(1).lower()}{ext}"
+            m = re.search(r"def (\w+)", code)
+            if m and m.group(1) != "__init__":
+                return f"{m.group(1).lower()}{ext}"
+
+        # Build name from user request
+        clean = re.sub(r"[^a-z0-9\s]", "", text_lower)
+        words = clean.split()
+        # Remove filler words
+        filler = {"write","create","build","make","a","an","the","for","me",
+                  "simple","basic","with","using","in","code","script","app",
+                  "application","program","python","html","flask","django"}
+        words = [w for w in words if w not in filler]
+
+        if words:
+            name = "_".join(words[:3])
+        else:
+            name = "nano_project"
+
+        return f"{name}{ext}"
+
+    def _save(self, filename: str, code: str) -> Path:
+        """Save code to ~/Desktop/Nano_Projects/"""
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        filepath = OUTPUT_DIR / filename
+
+        # Don't overwrite — add number suffix
+        counter = 1
+        while filepath.exists():
+            stem = Path(filename).stem
+            ext  = Path(filename).suffix
+            filepath = OUTPUT_DIR / f"{stem}_{counter}{ext}"
+            counter += 1
+
+        filepath.write_text(code, encoding="utf-8")
+        print(f"\033[32m[Code] Saved: {filepath}\033[0m")
+        return filepath
+
+    def _open_in_editor(self, filepath: Path):
+        """Open the file in VS Code if installed."""
+        import subprocess
+        try:
+            subprocess.Popen(["code", str(filepath)])
+        except FileNotFoundError:
+            try:
+                subprocess.Popen(["notepad", str(filepath)])
+            except Exception:
+                pass
