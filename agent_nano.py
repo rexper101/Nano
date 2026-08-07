@@ -472,4 +472,195 @@ class NanoAgent:
                 return f"Ollama error: {e}"
         return "Failed after 3 attempts."
 
-  
+    # ── TTS / Avatar ──────────────────────────────────────────────────────────
+
+    def _speak(self, text: str):
+        if self.avatar: self.avatar.start_speaking()
+        audio, rate = self.tts.synthesise(text)
+        if audio is not None:
+            sd.play(audio, rate, blocking=True)
+            time.sleep(0.2)
+        if self.avatar: self.avatar.stop_speaking()
+
+    def _set_state(self, state: str):
+        if self.avatar: self.avatar.set_state(state)
+
+    # ── FastAPI (serves UI + WebSocket) ───────────────────────────────────────
+
+    def _run_api(self):
+        import uvicorn
+        from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+        from fastapi.middleware.cors import CORSMiddleware
+        from fastapi.responses import HTMLResponse
+
+        api   = FastAPI()
+        agent = self
+
+        api.add_middleware(CORSMiddleware, allow_origins=["*"],
+                           allow_methods=["*"], allow_headers=["*"])
+
+        @api.get("/", response_class=HTMLResponse)
+        async def root():
+            p = Path(__file__).parent / "ui" / "index.html"
+            if p.exists():
+                return HTMLResponse(p.read_text(encoding="utf-8"))
+            return HTMLResponse("<h1>ui/index.html not found</h1>")
+
+        @api.get("/health")
+        async def health():
+            import httpx as hx
+            try:
+                r = hx.get("http://localhost:11434/api/tags", timeout=2.0)
+                models = [m["name"] for m in r.json().get("models", [])]
+                m = next((x for x in models if "phi3" in x),
+                    next((x for x in models if "qwen" in x), "none"))
+                return {"status":"ok","ollama":True,"model":m}
+            except Exception:
+                return {"status":"degraded","ollama":False,"model":"none"}
+
+        @api.post("/chat")
+        async def chat_rest(req: dict):
+            text = req.get("text","").strip()
+            if not text: return {"error":"empty"}
+            t0   = time.time()
+            tool = await agent._call_tool(text)
+            ctx  = f"{text}\n\n[Tool: {tool}]" if tool else text
+            agent.history.append({"role":"user","content":ctx})
+            resp = await agent._llm(ctx)
+            agent.history.append({"role":"assistant","content":resp})
+            if len(agent.history) > 16: agent.history = agent.history[-16:]
+            agent._save_history()
+            threading.Thread(target=agent._speak, args=(resp,), daemon=True).start()
+            return {"response":resp,"action":tool or "",
+                    "intent":agent._intent(text),"emotion":agent._emotion(resp),
+                    "latency_ms":int((time.time()-t0)*1000)}
+
+        @api.websocket("/ws")
+        async def ws_ep(ws: WebSocket):
+            await ws.accept()
+            agent._ws_clients.add(ws)
+            try:
+                while True:
+                    raw  = await ws.receive_text()
+                    data = json.loads(raw)
+                    text = data.get("text","").strip()
+                    if not text: continue
+                    await ws.send_json({"type":"thinking"})
+                    t0   = time.time()
+                    tool = await agent._call_tool(text)
+                    ctx  = f"{text}\n\n[Tool: {tool}]" if tool else text
+                    agent.history.append({"role":"user","content":ctx})
+                    resp = await agent._llm(ctx)
+                    agent.history.append({"role":"assistant","content":resp})
+                    if len(agent.history) > 16: agent.history = agent.history[-16:]
+                    agent._save_history()
+                    msg = {"type":"response","response":resp,"action":tool or "",
+                           "intent":agent._intent(text),"emotion":agent._emotion(resp),
+                           "latency_ms":int((time.time()-t0)*1000)}
+                    await ws.send_json(msg)
+                    threading.Thread(target=agent._speak, args=(resp,), daemon=True).start()
+            except WebSocketDisconnect:
+                agent._ws_clients.discard(ws)
+            except Exception:
+                agent._ws_clients.discard(ws)
+
+        uvicorn.run(api, host="0.0.0.0", port=API_PORT,
+                    log_level="warning",
+                    ws_ping_interval=30,
+                    ws_ping_timeout=60,
+                    timeout_keep_alive=65)
+
+    def _broadcast(self, msg: dict):
+        dead = set()
+        for ws in list(self._ws_clients):
+            try:
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                if loop.is_running():
+                    asyncio.run_coroutine_threadsafe(ws.send_json(msg), loop)
+                else:
+                    loop.run_until_complete(ws.send_json(msg))
+            except Exception:
+                dead.add(ws)
+        self._ws_clients -= dead
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _load_history(self) -> list:
+        if self._history_file.exists():
+            try:
+                return json.loads(self._history_file.read_text(encoding="utf-8"))[-20:]
+            except Exception:
+                return []
+        return []
+
+    def _save_history(self):
+        try:
+            self._history_file.parent.mkdir(parents=True, exist_ok=True)
+            self._history_file.write_text(
+                json.dumps(self.history[-50:], ensure_ascii=False),
+                encoding="utf-8"
+            )
+        except Exception:
+            pass
+
+    def _load_profile(self) -> str:
+        p = Path(__file__).parent / "config" / "user_profile.txt"
+        if p.exists():
+            return p.read_text(encoding="utf-8").strip()
+        return ""
+
+    def _intent(self, t: str) -> str:
+        tl = t.lower()
+        if re.search(r"\b(write|create|build|generate|script|code)\b", tl):
+            if re.search(r"\b(notepad|text file|file|folder|document|program|app)\b", tl):
+                if "notepad" in tl or "text file" in tl or "file" in tl:
+                    if "write my name in notepad" in tl or "create a text file" in tl:
+                        pass
+                    else:
+                        return "code"
+            elif re.search(r"\b(muscle|workout|exercise|diet|health)\b", tl):
+                return "chat"
+            else:
+                return "code"
+        if any(w in tl for w in ["run","execute","install","git","ipconfig","pip","cmd"]):             return "cmd"
+        if any(w in tl for w in ["open","launch","start","play"]):                                     return "app"
+        if any(w in tl for w in ["search","news","what is","who is","look up"]):                       return "search"
+        if any(w in tl for w in ["remember","memory","recall","forget"]):                              return "memory"
+        if any(w in tl for w in ["file","folder","list files","read"]):                                return "file"
+        return "chat"
+
+    def _emotion(self, r: str) -> str:
+        rl = r.lower()
+        if any(w in rl for w in ["error","failed","sorry","unable","not running"]): return "error"
+        if any(w in rl for w in ["done","created","saved","opened","installed","found"]): return "happy"
+        return "idle"
+
+    def _banner(self):
+        print("\033[31m")
+        print("  ╔══════════════════════════════════════════════╗")
+        print("  ║     N A N O   A I   A G E N T   v 5 . 0    ║")
+        print("  ║  MCP Tools · phi3:mini · Edge TTS · Free    ║")
+        print("  ╚══════════════════════════════════════════════╝")
+        print("\033[0m")
+
+
+import subprocess
+
+if __name__ == "__main__":
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("--text",       action="store_true", help="Text mode, no mic")
+    p.add_argument("--no-avatar",  action="store_true", help="No avatar window")
+    p.add_argument("--model",      type=str, help="LLM model name (overrides MODEL)")
+    p.add_argument("--port",       type=int, help="API port (overrides API_PORT)")
+    p.add_argument("--ollama",     type=str, help="Ollama URL (overrides OLLAMA_URL)")
+    p.add_argument("--debug",      action="store_true", help="Enable debug logging")
+    args = p.parse_args()
+    agent = NanoAgent(text_mode=args.text, no_avatar=args.no_avatar,
+                      model=args.model, api_port=args.port, ollama_url=args.ollama, debug=args.debug)
+    agent.start()
