@@ -66,6 +66,34 @@ class AppTool:
                 return key
         return None
 
+    def _close(self, text: str) -> str:
+        key = self._find_key(text)
+        if key and key in PROCESS_MAP:
+            process = PROCESS_MAP[key]
+            try:
+                subprocess.run([
+                    "taskkill", "/F", "/IM", process
+                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return f"Closed {key.title()}."
+            except subprocess.CalledProcessError:
+                return f"Could not close {key}. It may not be running."
+
+        # Fallback: try to find any process name after close/kill/quit
+        m = re.search(r"(?:close|kill|quit|exit|stop)\s+([\w\s]+)", text)
+        if m:
+            app = m.group(1).strip()
+            process = PROCESS_MAP.get(app)
+            if process:
+                try:
+                    subprocess.run([
+                        "taskkill", "/F", "/IM", process
+                    ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return f"Closed {app.title()}."
+                except subprocess.CalledProcessError:
+                    return f"Could not close {app}. It may not be running."
+
+        return f"Could not determine which app to close."
+
     def _open(self, text_lower: str, original: str) -> str:
         key = self._find_key(text_lower)
 
