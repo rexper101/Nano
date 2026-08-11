@@ -115,12 +115,3 @@ class ScreenTool:
         except ImportError:
             # Fallback to vision model for text reading
             return self._describe_screen("Read and list all the text you can see on this screen.")
-
-    def _take_screenshot(self) -> str:
-        """Just save the screenshot and confirm."""
-        _, path = self._capture()
-        if path.exists():
-            import os
-            os.startfile(str(path.parent))
-            return f"Screenshot saved to {path}"
-        return "Could not take screenshot. Install mss: pip install mss"
