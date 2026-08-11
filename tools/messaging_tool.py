@@ -106,4 +106,92 @@ class MessagingTool:
         except Exception as e:
             return f"Could not read emails: {e}"
 
-    
+    def _reply_to_last(self) -> str:
+        try:
+            mail = imaplib.IMAP4_SSL("imap.gmail.com")
+            mail.login(self._creds["gmail_user"], self._creds["gmail_password"])
+            mail.select("inbox")
+
+            _, data = mail.search(None, "ALL")
+            ids = data[0].split()
+            if not ids:
+                mail.logout()
+                return "No emails found."
+
+            # Get last email
+            _, msg_data = mail.fetch(ids[-1], "(RFC822)")
+            msg      = email.message_from_bytes(msg_data[0][1])
+            sender   = msg.get("From", "")
+            subject  = msg.get("Subject", "")
+            body     = self._get_body(msg)
+            mail.logout()
+
+            # Generate reply with LLM
+            reply_text = self._generate_reply(body, sender)
+
+            # Send the reply
+            return self._send_raw(
+                to=sender,
+                subject=f"Re: {subject}",
+                body=reply_text,
+            )
+
+        except Exception as e:
+            return f"Could not reply: {e}"
+
+    def _send_email(self, user_text: str) -> str:
+        # Extract TO address
+        match = re.search(r"to\s+([\w.@+]+)", user_text, re.IGNORECASE)
+        if not match:
+            return "Could not find recipient email address."
+        to = match.group(1)
+
+        # Extract subject / body from user text
+        about_match = re.search(r"about\s+(.+)", user_text, re.IGNORECASE)
+        body = about_match.group(1) if about_match else user_text
+
+        return self._send_raw(to=to, subject="Message from Nano", body=body)
+
+    def _send_raw(self, to: str, subject: str, body: str) -> str:
+        try:
+            msg            = MIMEText(body)
+            msg["Subject"] = subject
+            msg["From"]    = self._creds["gmail_user"]
+            msg["To"]      = to
+
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                smtp.login(self._creds["gmail_user"], self._creds["gmail_password"])
+                smtp.send_message(msg)
+
+            return f"Email sent to {to}."
+        except Exception as e:
+            return f"Failed to send email: {e}"
+
+    def _get_body(self, msg) -> str:
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == "text/plain":
+                    return part.get_payload(decode=True).decode(errors="ignore")
+        else:
+            return msg.get_payload(decode=True).decode(errors="ignore")
+        return ""
+
+    def _generate_reply(self, original: str, sender: str) -> str:
+        try:
+            resp = httpx.post(
+                OLLAMA_URL,
+                json={
+                    "model": MODEL,
+                    "messages": [
+                        {"role": "system", "content": REPLY_SYSTEM},
+                        {"role": "user",   "content":
+                            f"Original email from {sender}:\n{original[:400]}\n\nWrite a reply:"},
+                    ],
+                    "stream": False,
+                    "options": {"temperature": 0.5, "num_predict": 300},
+                },
+                timeout=60.0,
+            )
+            return resp.json()["message"]["content"].strip()
+        except Exception:
+            return "Thank you for your email. I will get back to you shortly."
