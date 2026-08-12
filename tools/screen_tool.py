@@ -95,32 +95,4 @@ class ScreenTool:
         except Exception as e:
             return f"Screen analysis failed: {e}"
 
-    def _read_screen(self) -> str:
-        """Extract text from screen using OCR."""
-        try:
-            import easyocr
-            import numpy as np
-            from PIL import Image
-
-            _, path = self._capture()
-            if not path.exists():
-                return "Could not capture screen."
-
-            reader = easyocr.Reader(["en"], gpu=False)
-            img    = np.array(Image.open(path))
-            result = reader.readtext(img)
-            text   = " ".join(r[1] for r in result if r[2] > 0.3)
-            return text[:600] if text else "No readable text found on screen."
-
-        except ImportError:
-            # Fallback to vision model for text reading
-            return self._describe_screen("Read and list all the text you can see on this screen.")
-
-    def _take_screenshot(self) -> str:
-        """Just save the screenshot and confirm."""
-        _, path = self._capture()
-        if path.exists():
-            import os
-            os.startfile(str(path.parent))
-            return f"Screenshot saved to {path}"
-        return "Could not take screenshot. Install mss: pip install mss"
+  
