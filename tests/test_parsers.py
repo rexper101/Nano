@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 os.environ.setdefault("NANO_SKIP_DEPS", "1")
 
 from agent_nano import NanoAgent
+from tools.search_tool import WebSearchTool
 
 
 @pytest.fixture
@@ -70,3 +71,9 @@ def test_intent_memory(agent):
 
 def test_intent_file(agent):
     assert agent._intent("read file notes.txt") == "file"
+
+
+def test_search_query_extracts_clean_ollama_phrase():
+    tool = WebSearchTool()
+    assert tool._extract_query("search the web for Ollama update") == "Ollama update"
+    assert tool._extract_query("look up qwen model improvements") == "qwen model improvements"
