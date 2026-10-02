@@ -103,6 +103,16 @@ class LLMClient:
             pass
         self._model = FAST_MODEL
         return self._model
+
+    def status(self) -> dict:
+        try:
+            r = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
+            models = [m["name"] for m in r.json().get("models", [])]
+            selected = self._get_model() if models else FAST_MODEL
+            return {"ollama": True, "model": selected, "mode": "online"}
+        except Exception:
+            return {"ollama": False, "model": FAST_MODEL, "mode": "offline-fallback"}
+
     def _offline_message(self) -> str:
         if not OFFLINE_FALLBACK:
             return "Ollama is not running. Start it with: ollama serve"
@@ -110,6 +120,7 @@ class LLMClient:
             "Offline mode: Ollama is unavailable. I can still run local commands and file actions, "
             "but advanced AI reasoning is paused until ollama serve is started."
         )
+
     def chat(self, user_text: str, history: list) -> str:
         model    = self._get_model()
         messages = [{"role": "system", "content": self.system_prompt}]
