@@ -63,6 +63,7 @@ class Nano:
         # ── Router ────────────────────────────────────────────────────────
         print("  Agents  : ready ✓")
         self.router = Router(system_prompt=SYSTEM_PROMPT)
+        self._show_status()
 
         # ── VAD ───────────────────────────────────────────────────────────
         if not text_mode:
@@ -163,6 +164,12 @@ class Nano:
         print("  ║     English Voice · Offline · Windows    ║")
         print("  ╚══════════════════════════════════════════╝")
         print("\033[0m")
+
+    def _show_status(self):
+        status = self.router.llm.status()
+        state_text = "online" if status["ollama"] else "offline fallback"
+        color = "32" if status["ollama"] else "33"
+        print(f"\n  \033[{color}mOllama: {state_text} | model: {status['model']} | mode: {status['mode']}\033[0m")
 
     def _show_ui_link(self):
         print(f"\n  \033[31mDashboard → open Chrome and go to:\033[0m")

@@ -67,10 +67,12 @@ async def health():
     import httpx
     ollama_ok = False
     model_used = "unknown"
+    mode = "offline-fallback"
     try:
         r = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
         models = [m["name"] for m in r.json().get("models", [])]
-        ollama_ok  = True
+        ollama_ok = True
+        mode = "online"
         model_used = next((m for m in models if "qwen" in m),
                      next((m for m in models if "llama" in m),
                      next((m for m in models if "phi3" in m), "none")))
@@ -80,6 +82,7 @@ async def health():
         "status":  "ok" if ollama_ok else "degraded",
         "ollama":  ollama_ok,
         "model":   model_used,
+        "mode":    mode,
         "router":  state.router is not None,
     }
 
