@@ -7,7 +7,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # Skip heavy dependency checks when importing the module during tests
 os.environ.setdefault("NANO_SKIP_DEPS", "1")
 
+import httpx
+
 from agent_nano import NanoAgent
+from agents.llm import LLMClient
 from tools.search_tool import WebSearchTool
 
 
@@ -77,3 +80,30 @@ def test_search_query_extracts_clean_ollama_phrase():
     tool = WebSearchTool()
     assert tool._extract_query("search the web for Ollama update") == "Ollama update"
     assert tool._extract_query("look up qwen model improvements") == "qwen model improvements"
+
+
+def test_llm_reports_missing_ollama_model(monkeypatch):
+    client = LLMClient("test system")
+
+    monkeypatch.setattr(
+        "agents.llm.httpx.get",
+        lambda *args, **kwargs: type("Resp", (), {"json": lambda self: {"models": []}})(),
+    )
+
+    def fake_post(*args, **kwargs):
+        class Resp:
+            status_code = 404
+
+            def json(self):
+                return {"error": "model 'qwen2.5:7b' not found"}
+
+            def raise_for_status(self):
+                raise httpx.HTTPStatusError(
+                    "404", request=httpx.Request("POST", "http://localhost:11434/api/chat"), response=self
+                )
+
+        return Resp()
+
+    monkeypatch.setattr("agents.llm.httpx.post", fake_post)
+
+    assert client.chat("hello", []) == "Ollama model not found: qwen2.5:7b. Run: ollama pull qwen2.5:7b"
