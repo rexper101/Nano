@@ -28,6 +28,43 @@ class LLMClient:
         self.system_prompt = system_prompt + "\n\n" + ENGLISH_RULE
         self._model        = None
 
+    def _preferred_models(self) -> list[str]:
+        return [
+            FAST_MODEL,
+            "qwen2.5:7b",
+            "qwen2.5",
+            "qwen",
+            "llama3.1",
+            "llama3.2",
+            "llama3",
+            "mistral",
+            "phi3:mini",
+            "phi3",
+        ]
+
+    def ensure_model_ready(self) -> tuple[bool, str | None]:
+        """Check whether Ollama is running and a usable local model is installed."""
+        try:
+            r = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
+            available = [m["name"] for m in r.json().get("models", [])]
+            if not available:
+                return False, f"Ollama is running but no models are installed. Run: ollama pull {FAST_MODEL}"
+
+            def _match_model(preferred: list[str]) -> str | None:
+                for alias in preferred:
+                    for name in available:
+                        if name == alias or name.startswith(alias + ":") or name.startswith(alias + "-") or alias in name:
+                            return name
+                return None
+
+            if _match_model(self._preferred_models()) is None:
+                return False, f"Ollama model not found: {FAST_MODEL}. Run: ollama pull {FAST_MODEL}"
+            return True, None
+        except httpx.ConnectError:
+            return False, "Ollama is not running. Start it with: ollama serve"
+        except Exception as exc:
+            return False, f"Ollama error: {exc}"
+
     def _get_model(self) -> str:
         """Pick a healthy local model, preferring the user-configured choice."""
         if self._model:
@@ -43,19 +80,7 @@ class LLMClient:
                             return name
                 return None
 
-            preferred = [
-                FAST_MODEL,
-                "qwen2.5:7b",
-                "qwen2.5",
-                "qwen",
-                "llama3.1",
-                "llama3.2",
-                "llama3",
-                "mistral",
-                "phi3:mini",
-                "phi3",
-            ]
-            best_match = _match_model(preferred)
+            best_match = _match_model(self._preferred_models())
             if best_match:
                 print(f"[LLM] Using model: {best_match}")
                 self._model = best_match

@@ -107,3 +107,16 @@ def test_llm_reports_missing_ollama_model(monkeypatch):
     monkeypatch.setattr("agents.llm.httpx.post", fake_post)
 
     assert client.chat("hello", []) == "Ollama model not found: qwen2.5:7b. Run: ollama pull qwen2.5:7b"
+
+
+def test_llm_detects_missing_model_message(monkeypatch):
+    client = LLMClient("test system")
+
+    monkeypatch.setattr(
+        "agents.llm.httpx.get",
+        lambda *args, **kwargs: type("Resp", (), {"json": lambda self: {"models": [{"name": "tinyllama:latest"}]}})(),
+    )
+
+    ok, message = client.ensure_model_ready()
+    assert ok is False
+    assert "ollama pull qwen2.5:7b" in message
