@@ -8,6 +8,7 @@ window so the assistant remembers the conversation.
 """
 
 import os
+import subprocess
 import time
 import httpx
 
@@ -42,12 +43,18 @@ class LLMClient:
             "phi3",
         ]
 
-    def ensure_model_ready(self) -> tuple[bool, str | None]:
+    def ensure_model_ready(self, auto_pull: bool = True) -> tuple[bool, str | None]:
         """Check whether Ollama is running and a usable local model is installed."""
         try:
             r = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
             available = [m["name"] for m in r.json().get("models", [])]
             if not available:
+                if auto_pull:
+                    try:
+                        subprocess.run(["ollama", "pull", FAST_MODEL], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                        return self.ensure_model_ready(auto_pull=False)
+                    except Exception as exc:
+                        return False, f"Ollama model not found: {FAST_MODEL}. Run: ollama pull {FAST_MODEL}. Error: {exc}"
                 return False, f"Ollama is running but no models are installed. Run: ollama pull {FAST_MODEL}"
 
             def _match_model(preferred: list[str]) -> str | None:
@@ -58,6 +65,12 @@ class LLMClient:
                 return None
 
             if _match_model(self._preferred_models()) is None:
+                if auto_pull:
+                    try:
+                        subprocess.run(["ollama", "pull", FAST_MODEL], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                        return self.ensure_model_ready(auto_pull=False)
+                    except Exception as exc:
+                        return False, f"Ollama model not found: {FAST_MODEL}. Run: ollama pull {FAST_MODEL}. Error: {exc}"
                 return False, f"Ollama model not found: {FAST_MODEL}. Run: ollama pull {FAST_MODEL}"
             return True, None
         except httpx.ConnectError:
