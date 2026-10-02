@@ -7,13 +7,14 @@ It prefers a fast model when available and keeps a short history
 window so the assistant remembers the conversation.
 """
 
+import os
 import time
 import httpx
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-DEFAULT_FAST_MODEL = "phi3:mini"
+DEFAULT_FAST_MODEL = "qwen2.5:7b"
 DEFAULT_MAIN_MODEL = "qwen2.5:7b"
-FAST_MODEL = "phi3:mini"
+FAST_MODEL = os.getenv("NANO_OLLAMA_MODEL", "qwen2.5:7b")
 
 ENGLISH_RULE = (
     "Always reply in English. "
@@ -28,7 +29,7 @@ class LLMClient:
         self._model        = None
 
     def _get_model(self) -> str:
-        """Pick the fastest available model."""
+        """Pick a healthy local model, preferring the user-configured choice."""
         if self._model:
             return self._model
         try:
@@ -42,19 +43,23 @@ class LLMClient:
                             return name
                 return None
 
-            # Prefer phi3:mini for speed
-            fast_match = _match_model([FAST_MODEL, "phi3", "phi3:3.8b"])
-            if fast_match:
-                print(f"[LLM] Using fast model: {fast_match}")
-                self._model = fast_match
-                return fast_match
-
-            # Fallback to qwen
-            main_match = _match_model(["qwen2.5:7b", "qwen2.5", "qwen"])
-            if main_match:
-                print(f"[LLM] Using model: {main_match}")
-                self._model = main_match
-                return main_match
+            preferred = [
+                FAST_MODEL,
+                "qwen2.5:7b",
+                "qwen2.5",
+                "qwen",
+                "llama3.1",
+                "llama3.2",
+                "llama3",
+                "mistral",
+                "phi3:mini",
+                "phi3",
+            ]
+            best_match = _match_model(preferred)
+            if best_match:
+                print(f"[LLM] Using model: {best_match}")
+                self._model = best_match
+                return best_match
         except Exception:
             pass
         self._model = FAST_MODEL
@@ -90,7 +95,14 @@ class LLMClient:
                     timeout=90.0,
                 )
                 resp.raise_for_status()
-                return resp.json()["message"]["content"].strip()
+                payload = resp.json()
+                content = payload.get("message", {}).get("content")
+                if isinstance(content, str) and content.strip():
+                    return content.strip()
+                for value in payload.values():
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+                return "Ollama returned an empty response."
 
             except httpx.ConnectError:
                 return "Ollama is not running. Start it with: ollama serve"

@@ -40,20 +40,28 @@ class WebSearchTool:
         return summary
 
     def _extract_query(self, text: str) -> str:
-        patterns = [
-            r"search(?:\s+for)?\s+(.+)",
-            r"look up\s+(.+)",
-            r"find\s+(?:info(?:rmation)?\s+(?:on|about)\s+)?(.+)",
-            r"what is\s+(.+)",
-            r"who is\s+(.+)",
-            r"how (?:do|does|to)\s+(.+)",
-            r"tell me about\s+(.+)",
+        cleaned = text.strip().rstrip("?")
+        if not cleaned:
+            return ""
+
+        filler_patterns = [
+            r"^search\s+(?:the\s+web\s+)?(?:for\s+)?(.+)$",
+            r"^look\s+up\s+(.+)$",
+            r"^find\s+(?:info(?:rmation)?\s+(?:on|about)\s+)?(.+)$",
+            r"^what\s+is\s+(.+)$",
+            r"^who\s+is\s+(.+)$",
+            r"^how\s+(?:do|does|to)\s+(.+)$",
+            r"^tell\s+me\s+about\s+(.+)$",
         ]
-        for pat in patterns:
-            m = re.search(pat, text, re.IGNORECASE)
+        for pat in filler_patterns:
+            m = re.search(pat, cleaned, re.IGNORECASE)
             if m:
-                return m.group(1).strip().rstrip("?")
-        return text.strip()
+                cleaned = m.group(1).strip()
+                break
+
+        cleaned = re.sub(r"^(?:the\s+web|online|web)\s+for\s+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s+[-–:]\s*$", "", cleaned)
+        return cleaned.strip().rstrip("?")
 
     def _search(self, query: str) -> list[dict]:
         """DuckDuckGo instant answer API — no key required."""

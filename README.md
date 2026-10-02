@@ -34,6 +34,11 @@ Same clean architecture as jarvis-mlx:
 #    → starts Ollama + API server + opens UI + launches Nano
 ```
 
+If Ollama is not yet set up, pull a modern local model first:
+```bash
+ollama pull qwen2.5:7b
+```
+
 Or manually:
 ```bash
 # Terminal 1

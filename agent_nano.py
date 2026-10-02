@@ -46,7 +46,7 @@ _check_deps()
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 API_PORT   = 8000
-MODEL      = "phi3:mini"   # fast — change to qwen2.5:7b for harder tasks
+MODEL      = "qwen2.5:7b"   # prefer a modern local model when available
 
 SYSTEM_PROMPT = """You are Nano, a powerful AI desktop assistant running on Windows.
 You can run real terminal commands, write code, open apps, search the web,

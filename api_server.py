@@ -1,8 +1,7 @@
 """
-Nano API Server — Fast Mode
-=============================
-Uses phi3:mini for 2-3x faster responses.
-Serves UI at http://localhost:8000
+Nano API Server — Local LLM Mode
+===============================
+Uses the best available local Ollama model and serves the UI at http://localhost:8000.
 WebSocket at ws://localhost:8000/ws
 """
 
@@ -72,8 +71,9 @@ async def health():
         r = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
         models = [m["name"] for m in r.json().get("models", [])]
         ollama_ok  = True
-        model_used = next((m for m in models if "phi3" in m), 
-                     next((m for m in models if "qwen" in m), "none"))
+        model_used = next((m for m in models if "qwen" in m),
+                     next((m for m in models if "llama" in m),
+                     next((m for m in models if "phi3" in m), "none")))
     except Exception:
         pass
     return {
@@ -192,7 +192,7 @@ def _emotion(r: str) -> str:
 
 if __name__ == "__main__":
     print("\n" + "="*50)
-    print("  Nano API — Fast Mode (phi3:mini)")
+    print("  Nano API — Local Ollama Mode")
     print("  http://localhost:8000")
     print("="*50 + "\n")
     uvicorn.run(
