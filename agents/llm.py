@@ -94,6 +94,11 @@ class LLMClient:
                     },
                     timeout=90.0,
                 )
+                if resp.status_code == 404:
+                    payload = resp.json()
+                    error_text = str(payload.get("error", "")).lower()
+                    if "model" in error_text or "not found" in error_text:
+                        return f"Ollama model not found: {model}. Run: ollama pull {model}"
                 resp.raise_for_status()
                 payload = resp.json()
                 content = payload.get("message", {}).get("content")
@@ -110,6 +115,10 @@ class LLMClient:
                 if attempt == 2:
                     return "Ollama timed out. Try a shorter question."
                 time.sleep(1)
+            except httpx.HTTPStatusError as exc:
+                if exc.response is not None and exc.response.status_code == 404:
+                    return f"Ollama model not found: {model}. Run: ollama pull {model}"
+                return f"Ollama error: {exc}"
             except Exception as e:
                 return f"Ollama error: {e}"
         return "Failed after 3 attempts"
