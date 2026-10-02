@@ -68,6 +68,10 @@ ollama pull phi3:mini
 echo  Pulling llava:7b (screen vision — 4.7GB)...
 ollama pull llava:7b
 
+echo.
+echo  [INFO] Starting Ollama service for Nano...
+start "Ollama" cmd /c "ollama serve"
+
 :: Create directories
 echo.
 echo  Creating folders...

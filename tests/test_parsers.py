@@ -120,3 +120,26 @@ def test_llm_detects_missing_model_message(monkeypatch):
     ok, message = client.ensure_model_ready()
     assert ok is False
     assert "ollama pull qwen2.5:7b" in message
+
+
+def test_llm_auto_pulls_missing_model(monkeypatch):
+    client = LLMClient("test system")
+    calls = {"get": 0, "pull": 0}
+
+    def fake_get(*args, **kwargs):
+        calls["get"] += 1
+        if calls["get"] == 1:
+            return type("Resp", (), {"json": lambda self: {"models": [{"name": "tinyllama:latest"}]}})()
+        return type("Resp", (), {"json": lambda self: {"models": [{"name": "qwen2.5:7b"}]}})()
+
+    def fake_run(command, **kwargs):
+        calls["pull"] += 1
+        return type("Proc", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr("agents.llm.httpx.get", fake_get)
+    monkeypatch.setattr("agents.llm.subprocess.run", fake_run)
+
+    ok, message = client.ensure_model_ready(auto_pull=True)
+    assert ok is True
+    assert message is None
+    assert calls["pull"] == 1

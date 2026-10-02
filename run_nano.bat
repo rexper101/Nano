@@ -1,41 +1,51 @@
-"""
-Nano Voice Agent  —  agent_nano.py
-=====================================
-Add this to your nano folder alongside server.py.
+@echo off
+title Nano AI Desktop Assistant
+color 0B
 
-Run:  python agent_nano.py --text    (text mode)
-      python agent_nano.py           (voice mode)
+where ollama >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Ollama is not installed or not on PATH.
+    echo Install from: https://ollama.ai
+    pause
+    exit /b 1
+)
 
-Requires:
-  - Ollama running:  ollama serve
-  - MCP server:      python server.py  (in another terminal)
-  - pip install mcp[cli] httpx faster-whisper sounddevice edge-tts soundfile
-"""
+:: Start Ollama service if needed
+for /f "tokens=*" %%i in ('ollama list 2^>nul ^| findstr /C:"qwen2.5:7b"') do set MODEL_FOUND=1
+if not defined MODEL_FOUND (
+    echo [INFO] qwen2.5:7b not found. Pulling it now...
+    ollama pull qwen2.5:7b
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Unable to pull qwen2.5:7b.
+        pause
+        exit /b 1
+    )
+)
 
-import asyncio
-import json
-import os
-import re
-import sys
-import time
-import threading
-import numpy as np
-import sounddevice as sd
-from queue import Queue
-from pathlib import Path
+where python >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Python is not installed or not on PATH.
+    pause
+    exit /b 1
+)
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
-API_PORT   = 8000
-MODEL      = "phi3:mini"   # fast — change to qwen2.5:7b for harder tasks
+:: Start Ollama server in background if it is not already running
+curl -s http://localhost:11434/api/tags >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [INFO] Starting Ollama service...
+    start "Ollama" cmd /c "ollama serve"
+    timeout /t 5 /nobreak >nul
+)
 
-SYSTEM_PROMPT = """You are Nano, a powerful AI desktop assistant running on Windows.
-You can run real terminal commands, write code, open apps, search the web,
-manage files, and remember things.
-Always reply in English only. Keep answers under 3 sentences.
-When a tool runs, briefly say what you did. Address the user as Anike."""
+:: Launch Nano
+python main.py --text
 
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Nano failed to start.
+    pause
+)
 
-class NanoAgent:
+exit /b 0
 
     def __init__(self, text_mode=False, no_avatar=False):
         self.text_mode   = text_mode
