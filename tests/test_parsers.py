@@ -143,3 +143,16 @@ def test_llm_auto_pulls_missing_model(monkeypatch):
     assert ok is True
     assert message is None
     assert calls["pull"] == 1
+
+
+def test_llm_offline_fallback_message(monkeypatch):
+    client = LLMClient("test system")
+
+    def fake_post(*args, **kwargs):
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr("agents.llm.httpx.post", fake_post)
+
+    response = client.chat("hello", [])
+    assert "Offline mode" in response
+    assert "ollama serve" in response

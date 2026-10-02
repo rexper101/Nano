@@ -16,6 +16,7 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 DEFAULT_FAST_MODEL = "qwen2.5:7b"
 DEFAULT_MAIN_MODEL = "qwen2.5:7b"
 FAST_MODEL = os.getenv("NANO_OLLAMA_MODEL", "qwen2.5:7b")
+OFFLINE_FALLBACK = os.getenv("NANO_OFFLINE_FALLBACK", "1").lower() in {"1", "true", "yes", "on"}
 
 ENGLISH_RULE = (
     "Always reply in English. "
@@ -102,7 +103,13 @@ class LLMClient:
             pass
         self._model = FAST_MODEL
         return self._model
-
+    def _offline_message(self) -> str:
+        if not OFFLINE_FALLBACK:
+            return "Ollama is not running. Start it with: ollama serve"
+        return (
+            "Offline mode: Ollama is unavailable. I can still run local commands and file actions, "
+            "but advanced AI reasoning is paused until ollama serve is started."
+        )
     def chat(self, user_text: str, history: list) -> str:
         model    = self._get_model()
         messages = [{"role": "system", "content": self.system_prompt}]
@@ -148,15 +155,15 @@ class LLMClient:
                 return "Ollama returned an empty response."
 
             except httpx.ConnectError:
-                return "Ollama is not running. Start it with: ollama serve"
+                return self._offline_message()
             except httpx.TimeoutException:
                 if attempt == 2:
-                    return "Ollama timed out. Try a shorter question."
+                    return self._offline_message() if OFFLINE_FALLBACK else "Ollama timed out. Try a shorter question."
                 time.sleep(1)
             except httpx.HTTPStatusError as exc:
                 if exc.response is not None and exc.response.status_code == 404:
                     return f"Ollama model not found: {model}. Run: ollama pull {model}"
-                return f"Ollama error: {exc}"
+                return self._offline_message()
             except Exception as e:
-                return f"Ollama error: {e}"
+                return self._offline_message() if OFFLINE_FALLBACK else f"Ollama error: {e}"
         return "Failed after 3 attempts"
