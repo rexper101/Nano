@@ -9,6 +9,10 @@ Run:
   python main.py --no-avatar  no floating avatar
 """
 
+import argparse
+import json
+import os
+import sys
 import time
 import threading
 import sounddevice as sd
@@ -18,6 +22,28 @@ from queue import Queue
 from stt.transcriber      import Transcriber
 from tts.japanese_speaker import JapaneseTTSSpeaker
 from agents.router        import Router
+
+
+def check_environment():
+    """Return a simple startup status for the local AI stack."""
+    status = {"ollama": False, "model": "qwen2.5:7b", "mode": "offline-fallback", "message": ""}
+
+    try:
+        import httpx
+        response = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
+        response.raise_for_status()
+        models = [m.get("name", "") for m in response.json().get("models", []) if m.get("name")]
+        status["model"] = models[0] if models else status["model"]
+        status["ollama"] = bool(models)
+        status["mode"] = "online" if models else "offline-fallback"
+        if not models:
+            status["message"] = "Ollama is running, but no model is installed. Run: ollama pull qwen2.5:7b"
+        else:
+            status["message"] = "Ollama and a local model are available."
+        return status
+    except Exception as exc:
+        status["message"] = f"Ollama is not ready. Start it with: ollama serve. Details: {exc}"
+        return status
 
 
 SYSTEM_PROMPT = """You are Nano, a helpful AI desktop assistant.
@@ -178,9 +204,15 @@ class Nano:
 
 
 if __name__ == "__main__":
-    import argparse
-    p = argparse.ArgumentParser()
-    p.add_argument("--text",       action="store_true")
-    p.add_argument("--no-avatar",  action="store_true")
+    p = argparse.ArgumentParser(description="Nano local desktop assistant")
+    p.add_argument("--text", action="store_true", help="run in text-only mode")
+    p.add_argument("--no-avatar", action="store_true", help="disable the floating avatar window")
+    p.add_argument("--check", action="store_true", help="run a startup health check and exit")
     args = p.parse_args()
+
+    if args.check:
+        result = check_environment()
+        print(json.dumps(result, indent=2))
+        raise SystemExit(0 if result["ollama"] else 1)
+
     Nano(text_mode=args.text, no_avatar=args.no_avatar)

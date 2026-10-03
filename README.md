@@ -34,22 +34,35 @@ Same clean architecture as jarvis-mlx:
 #    → starts Ollama + API server + opens UI + launches Nano
 ```
 
+First, confirm the local runtime is healthy:
+```bash
+python main.py --check
+```
+
 If Ollama is not yet set up, pull a modern local model first:
 ```bash
 ollama pull qwen2.5:7b
 ```
 
-Or manually:
+Then start the app normally:
+```bash
+# Text mode
+python main.py --text
+
+# Voice mode
+python main.py
+```
+
+Optional manual mode:
 ```bash
 # Terminal 1
 ollama serve
 
-# Terminal 2  
+# Terminal 2
 python api_server.py
 
 # Terminal 3
-python main.py --text        # text mode
-python main.py               # voice mode
+python main.py --text
 ```
 
 Then open `ui/index.html` in Chrome.
