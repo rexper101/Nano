@@ -274,9 +274,13 @@ class AppTool:
             return f"Could not close {name}. It may not be running."
 
     def _extract_target(self, text: str, keywords: list[str]) -> str | None:
-        pattern = rf"(?:{''.join(re.escape(word) + r'\s+' for word in keywords)})" \
-                  r"([\w\s\.\\:]+?)" \
-                  r"(?:\s+please|\s+now|$)"
+        pattern = (
+            r"(?:"
+            + "".join(re.escape(word) + r"\s+" for word in keywords)
+            + r")"
+            + r"([\w\s\.\\:]+?)"
+            + r"(?:\s+please|\s+now|$)"
+        )
         match = re.search(pattern, text)
         if match:
             return match.group(1).strip()
