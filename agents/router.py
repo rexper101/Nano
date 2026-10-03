@@ -24,9 +24,9 @@ from tools.memory_tool    import MemoryTool
 class Router:
     def __init__(self, system_prompt: str):
         self.llm      = LLMClient(system_prompt)
-        ready, message = self.llm.ensure_model_ready(auto_pull=True)
-        if not ready:
-            print(f"[LLM] {message}")
+        self.preflight = self.llm.preflight_check(auto_pull=True)
+        if not self.preflight["ok"]:
+            print(f"[LLM] {self.preflight['message']}")
         self.memory   = MemoryTool()
         self.cmd      = CMDTool()
         self.cv       = CVTool()

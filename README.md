@@ -1,4 +1,4 @@
-# Nano AI Desktop Assistant v3
+# Nano AI Desktop Assistant v5
 
 **Anime girl avatar · Japanese-accent English voice · Offline · Windows**
 
@@ -7,7 +7,7 @@ Same clean architecture as jarvis-mlx:
 
 ---
 
-## What's New in v3
+## What's New in v5
 
 | Feature | Detail |
 |---|---|

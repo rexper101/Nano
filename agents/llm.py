@@ -79,6 +79,15 @@ class LLMClient:
         except Exception as exc:
             return False, f"Ollama error: {exc}"
 
+    def preflight_check(self, auto_pull: bool = True) -> dict:
+        """Return a structured readiness result suitable for startup checks."""
+        ok, message = self.ensure_model_ready(auto_pull=auto_pull)
+        return {
+            "ok": ok,
+            "message": message or "Ollama model is ready.",
+            "model": self._get_model() if ok else FAST_MODEL,
+        }
+
     def _get_model(self) -> str:
         """Pick a healthy local model, preferring the user-configured choice."""
         if self._model:
