@@ -145,6 +145,19 @@ def test_llm_auto_pulls_missing_model(monkeypatch):
     assert calls["pull"] == 1
 
 
+def test_llm_preflight_reports_missing_model(monkeypatch):
+    client = LLMClient("test system")
+
+    monkeypatch.setattr(
+        "agents.llm.httpx.get",
+        lambda *args, **kwargs: type("Resp", (), {"json": lambda self: {"models": []}})(),
+    )
+
+    result = client.preflight_check(auto_pull=True)
+    assert result["ok"] is False
+    assert "ollama serve" in result["message"] or "ollama pull" in result["message"]
+
+
 def test_llm_offline_fallback_message(monkeypatch):
     client = LLMClient("test system")
 
